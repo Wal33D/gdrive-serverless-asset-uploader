@@ -1,72 +1,156 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import axios from 'axios';
+import { google } from 'googleapis';
+import { MongoClient, Db } from 'mongodb';
+import { checkIfFileExists } from '../utils/checkIfFileExists';
+import { findOrCreateFolder } from '../utils/findOrCreateFolder';
+import { getParamsFromRequest } from '../utils/getParamsFromRequest';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 
-import { handleGetRequest } from '../functions/handleGetRequest';
-import { handlePutRequest } from '../functions/handlePutRequest';
-import { handlePostRequest } from '../functions/handlePostRequest';
+// Load and parse all SERVICE_ACCOUNT_JSON_* environment variables and create Google Drive instances
+const getServiceAccountClients = async () => {
+	const serviceAccountsJson = Object.keys(process.env)
+		.filter(key => key.startsWith('SERVICE_ACCOUNT_JSON_'))
+		.map(key => JSON.parse(process.env[key] as any));
 
-/**
- * Serverless Function Handler
- *
- * This file handles incoming HTTP requests using Vercel's serverless functions. It routes
- * the requests to the appropriate handler based on the HTTP method (GET, PUT, POST, DELETE,
- * PATCH, OPTIONS, HEAD). If a method is not explicitly handled, a JSON response is returned
- * indicating the request type for safe handling of unsupported methods.
- *
- * Handlers:
- * - GET: handleGetRequest
- * - PUT: handlePutRequest
- * - POST: handlePostRequest
- * - DELETE, PATCH, OPTIONS, HEAD: handleDefaultRequest (returns JSON response logging the request type)
- *
- * The handlers are expected to return a Promise<void> and handle the response accordingly.
- *
- * @param {VercelRequest} request - The incoming Vercel request object.
- * @param {VercelResponse} response - The Vercel response object.
- * @returns {Promise<void>} - The response is sent directly by the handler.
- */
-
-type MethodHandlers = {
-	[key in 'GET' | 'PUT' | 'POST' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD']: (params: {
-		request: VercelRequest;
-		response: VercelResponse;
-	}) => Promise<void>;
+	const clients = await Promise.all(
+		serviceAccountsJson.map(async credentials => {
+			const auth = new google.auth.GoogleAuth({
+				credentials,
+				scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
+			});
+			const client = (await auth.getClient()) as any;
+			return google.drive({ version: 'v3', auth: client });
+		})
+	);
+	return clients;
 };
 
-const handleDefaultRequest = async ({ request, response }: { request: VercelRequest; response: VercelResponse }): Promise<void> => {
-	response.status(200).json({
-		status: true,
-		message: `Request method ${request.method} received and logged.`,
-		method: request.method,
+// MongoDB connection setup
+const { DB_USERNAME: dbUsername = '', DB_PASSWORD: dbPassword = '', DB_NAME: dbName = '', DB_CLUSTER: dbClusterName = '' } = process.env;
+
+const uri = `mongodb+srv://${encodeURIComponent(dbUsername)}:${encodeURIComponent(dbPassword)}@${dbClusterName}/?retryWrites=true&w=majority`;
+
+let client: MongoClient | null = null;
+let db: Db | null = null;
+
+const connectWithRetry = async (uri: string, attempts = 5): Promise<MongoClient> => {
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			const client = new MongoClient(uri);
+			await client.connect();
+			return client;
+		} catch (error) {
+			console.error(`Attempt ${attempt} failed: ${(error as Error).message}`);
+			if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+			else throw error;
+		}
+	}
+	throw new Error('Connection attempts exceeded.');
+};
+
+const connectToMongo = async (): Promise<Db> => {
+	if (!client) {
+		client = await connectWithRetry(uri);
+		db = client.db(dbName);
+	}
+	return db as Db;
+};
+
+async function streamDownloader({ fileUrl, fileName, folderName, folderId, driveClients, db, user }) {
+	const filesCollection = db.collection('files');
+	const indexCollection = db.collection('index');
+
+	// Check if file already exists in the database
+	const existingFile = await filesCollection.findOne({ fileName, folderId });
+	if (existingFile) {
+		return existingFile;
+	}
+
+	const response = await axios({
+		method: 'get',
+		url: fileUrl,
+		responseType: 'stream',
 	});
+
+	// Initialize the drive index if it does not exist
+	const indexDoc = await indexCollection.findOneAndUpdate(
+		{ name: 'driveIndex' },
+		{ $inc: { currentDriveIndex: 1 } },
+		{ returnOriginal: true, upsert: true }
+	);
+
+	if (!indexDoc.currentDriveIndex) {
+		await indexCollection.insertOne({ name: 'driveIndex', currentDriveIndex: 1 });
+		indexDoc.currentDriveIndex = { currentDriveIndex: 1 };
+	}
+
+	const clientIndex = (indexDoc.currentDriveIndex ?? 1) % driveClients.length;
+	const drive = driveClients[clientIndex];
+
+	// Ensure the user folder exists and get its folderId and folderName
+	const { folderId: userFolderId, folderName: userFolderName } = await findOrCreateFolder(drive, user, 'root');
+
+	const uploadResult = await streamUploadToGoogleDrive({ fileStream: response.data, fileName, folderId: userFolderId, drive });
+
+	const fileMetadata = {
+		fileName,
+		folderId: userFolderId,
+		folderName: folderName || userFolderName, // New field for folder name
+		user, // Add the user information to the metadata
+		...uploadResult,
+	};
+
+	// Save file metadata to the database
+	await filesCollection.insertOne(fileMetadata);
+
+	return fileMetadata;
+}
+
+// Function to stream and upload the file to Google Drive
+const streamUploadToGoogleDrive = async ({ fileStream, fileName, folderId, drive }) => {
+	const fileMetadata = { name: fileName, parents: [folderId] };
+	const media = { mimeType: '*/*', body: fileStream }; // Adjust mimeType based on your file type
+
+	const uploadResponse = await drive.files.create(
+		{
+			requestBody: fileMetadata,
+			media: media,
+			fields: 'id, name, mimeType, webViewLink, webContentLink, parents, version', // specify additional fields you need
+		},
+		{
+			onUploadProgress: evt => console.log(`Uploaded ${evt.bytesRead} bytes`),
+		}
+	);
+
+	return uploadResponse.data;
 };
 
-const methodHandlers: MethodHandlers = {
-	GET: handleGetRequest,
-	PUT: handlePutRequest,
-	POST: handlePostRequest,
-	DELETE: handleDefaultRequest,
-	PATCH: handleDefaultRequest,
-	OPTIONS: handleDefaultRequest,
-	HEAD: handleDefaultRequest,
-};
-
-const handler = async (request: VercelRequest, response: VercelResponse) => {
+// Vercel serverless handler
+const handler = async (req: VercelRequest, res: VercelResponse) => {
 	try {
-		const method = request.method as keyof MethodHandlers;
+		const db = await connectToMongo();
+		const driveClients = await getServiceAccountClients(); // Get all Drive clients
+		const { status, fileUrl, fileName, folderId, folderName, userName } = getParamsFromRequest(req); // Use the updated function
 
-		if (method in methodHandlers) {
-			return methodHandlers[method]({ request, response });
+		if (!status) {
+			res.status(400).send('Missing or invalid file URL.');
+			return;
 		}
 
-		response.status(405).json({
-			status: false,
-			message: `Method ${request.method} not allowed`,
-		});
-	} catch (error: any) {
-		response.status(500).json({
-			status: false,
-			message: `Error: ${error.message}`,
-		});
+		// Check if file already exists for the given user
+		const existingFile = await checkIfFileExists({ fileName, folderName, user: userName, db });
+		if (existingFile) {
+			console.log({ success: true, ...existingFile });
+			res.status(200).json({ success: true, ...existingFile });
+			return;
+		}
+
+		const fileMetadata = await streamDownloader({ fileUrl, fileName, folderName, folderId, driveClients, db, user: userName });
+
+		res.status(200).json({ success: true, ...fileMetadata });
+	} catch (error) {
+		console.error('Failed to upload file:', error);
+		res.status(500).json({ success: false, error: error.message });
 	}
 };
 
