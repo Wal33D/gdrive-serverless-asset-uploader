@@ -6,25 +6,6 @@ import { findOrCreateFolder } from '../utils/findOrCreateFolder';
 import { getParamsFromRequest } from '../utils/getParamsFromRequest';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Load and parse all SERVICE_ACCOUNT_JSON_* environment variables and create Google Drive instances
-const getServiceAccountClients = async () => {
-	const serviceAccountsJson = Object.keys(process.env)
-		.filter(key => key.startsWith('SERVICE_ACCOUNT_JSON_'))
-		.map(key => JSON.parse(process.env[key] as any));
-
-	const clients = await Promise.all(
-		serviceAccountsJson.map(async credentials => {
-			const auth = new google.auth.GoogleAuth({
-				credentials,
-				scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
-			});
-			const client = (await auth.getClient()) as any;
-			return google.drive({ version: 'v3', auth: client });
-		})
-	);
-	return clients;
-};
-
 // MongoDB connection setup
 const { DB_USERNAME: dbUsername = '', DB_PASSWORD: dbPassword = '', DB_NAME: dbName = '', DB_CLUSTER: dbClusterName = '' } = process.env;
 
@@ -46,14 +27,6 @@ const connectWithRetry = async (uri: string, attempts = 5): Promise<MongoClient>
 		}
 	}
 	throw new Error('Connection attempts exceeded.');
-};
-
-const connectToMongo = async (): Promise<Db> => {
-	if (!client) {
-		client = await connectWithRetry(uri);
-		db = client.db(dbName);
-	}
-	return db as Db;
 };
 
 async function streamDownloader({ fileUrl, fileName, folderName, folderId, driveClients, db, user }) {
@@ -106,38 +79,65 @@ async function streamDownloader({ fileUrl, fileName, folderName, folderId, drive
 	return fileMetadata;
 }
 
-// Function to stream and upload the file to Google Drive
-const streamUploadToGoogleDrive = async ({ fileStream, fileName, folderId, drive }) => {
-	const fileMetadata = { name: fileName, parents: [folderId] };
-	const media = { mimeType: '*/*', body: fileStream }; // Adjust mimeType based on your file type
+const getServiceAccountClients = async () => {
+	const serviceAccountsJson = Object.keys(process.env)
+		.filter(key => key.startsWith('SERVICE_ACCOUNT_JSON_'))
+		.map(key => JSON.parse(process.env[key] as string));
 
-	const uploadResponse = await drive.files.create(
-		{
-			requestBody: fileMetadata,
-			media: media,
-			fields: 'id, name, mimeType, webViewLink, webContentLink, parents, version', // specify additional fields you need
-		},
-		{
-			onUploadProgress: evt => console.log(`Uploaded ${evt.bytesRead} bytes`),
-		}
+	const clients = await Promise.all(
+		serviceAccountsJson.map(async credentials => {
+			const auth: any = new google.auth.GoogleAuth({
+				credentials,
+				scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
+			});
+			const client = await auth.getClient();
+			return google.drive({ version: 'v3', auth: client });
+		})
 	);
-
-	return uploadResponse.data;
+	return clients;
 };
 
-// Vercel serverless handler
+const connectToMongo = async (): Promise<Db> => {
+	if (!client) {
+		client = await connectWithRetry(uri);
+		db = client.db(dbName);
+	}
+	return db as Db;
+};
+
+const streamUploadToGoogleDrive = async ({ fileStream, fileName, folderId, drive }) => {
+	const fileMetadata = { name: fileName, parents: [folderId] };
+	const media = { mimeType: '*/*', body: fileStream };
+
+	const uploadResponse = await drive.files.create({
+		requestBody: fileMetadata,
+		media: media,
+		fields: 'id, name, mimeType, webViewLink, webContentLink, parents, version',
+	});
+
+	// Set the uploaded file to public
+	await drive.permissions.create({
+		fileId: uploadResponse.data.id,
+		requestBody: { type: 'anyone', role: 'reader' },
+	});
+
+	// Generate export download URL
+	const downloadUrl = `https://drive.google.com/uc?id=${uploadResponse.data.id}&export=download`;
+
+	return { ...uploadResponse.data, downloadUrl };
+};
+
 const handler = async (req: VercelRequest, res: VercelResponse) => {
 	try {
 		const db = await connectToMongo();
-		const driveClients = await getServiceAccountClients(); // Get all Drive clients
-		const { status, fileUrl, fileName, folderId, folderName, userName } = getParamsFromRequest(req); // Use the updated function
+		const driveClients = await getServiceAccountClients();
+		const { status, fileUrl, fileName, folderId, folderName, userName } = getParamsFromRequest(req);
 
 		if (!status) {
 			res.status(400).send('Missing or invalid file URL.');
 			return;
 		}
 
-		// Check if file already exists for the given user
 		const existingFile = await checkIfFileExists({ fileName, folderName, user: userName, db });
 		if (existingFile) {
 			console.log({ success: true, ...existingFile });
@@ -146,12 +146,10 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 		}
 
 		const fileMetadata = await streamDownloader({ fileUrl, fileName, folderName, folderId, driveClients, db, user: userName });
-
 		res.status(200).json({ success: true, ...fileMetadata });
 	} catch (error) {
 		console.error('Failed to upload file:', error);
 		res.status(500).json({ success: false, error: error.message });
 	}
 };
-
 export default handler;
