@@ -4,10 +4,10 @@ This repository contains a simple Node.js serverless function setup with Vercel.
 
 ## Features
 
-- Handles multiple HTTP methods: GET, PUT, POST, DELETE, PATCH, OPTIONS, HEAD.
-- Returns JSON responses for unsupported methods, indicating the request type.
-- Demonstrates the use of TypeScript for type safety and modern JavaScript features.
-- Includes example HTML content with Bootstrap for styling.
+-   Handles multiple HTTP methods: GET, PUT, POST, DELETE, PATCH, OPTIONS, HEAD.
+-   Returns JSON responses for unsupported methods, indicating the request type.
+-   Demonstrates the use of TypeScript for type safety and modern JavaScript features.
+-   Includes example HTML content with Bootstrap for styling.
 
 ## Deployment
 
@@ -15,8 +15,9 @@ You can deploy this project using Vercel. Follow the instructions below to get s
 
 ### One-Click Deploy
 
-Deploy the example using Vercel, Import the repository as a 3rd Party Repo, and deploy the project 
- https://github.com/Wal33D/serverless-vercel-function-enhanced.git
+Deploy the example using Vercel, Import the repository as a 3rd Party Repo, and deploy the project
+https://github.com/Wal33D/serverless-vercel-function-enhanced.git
+
 ### Clone and Deploy
 
 1. Clone the repository:
@@ -59,8 +60,8 @@ Handles unsupported methods (DELETE, PATCH, OPTIONS, HEAD) by returning a JSON r
 
 Example requests to test the serverless function:
 
-- GET Request: This is the current page you are viewing.
-- PUT Request:
+-   GET Request: This is the current page you are viewing.
+-   PUT Request:
 
 ```bash
 curl -X PUT "https://vercel.demo.function.serverless.aquataze.com/?name=Stan"
@@ -70,13 +71,13 @@ Response:
 
 ```json
 {
-  "status": true,
-  "message": "Hello Stan! PUT request handled successfully",
-  "method": "PUT"
+	"status": true,
+	"message": "Hello Stan! PUT request handled successfully",
+	"method": "PUT"
 }
 ```
 
-- POST Request:
+-   POST Request:
 
 ```bash
 curl -X POST "https://vercel.demo.function.serverless.aquataze.com/?name=Stan"
@@ -86,9 +87,9 @@ Response:
 
 ```json
 {
-  "status": true,
-  "message": "Hello Stan! POST request handled successfully",
-  "method": "POST"
+	"status": true,
+	"message": "Hello Stan! POST request handled successfully",
+	"method": "POST"
 }
 ```
 
@@ -123,45 +124,48 @@ import { handlePostRequest } from '../functions/handlePostRequest';
  */
 
 type MethodHandlers = {
-    [key in 'GET' | 'PUT' | 'POST' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD']: (params: { request: VercelRequest, response: VercelResponse }) => Promise<void>;
+	[key in 'GET' | 'PUT' | 'POST' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD']: (params: {
+		request: VercelRequest;
+		response: VercelResponse;
+	}) => Promise<void>;
 };
 
-const handleDefaultRequest = async ({ request, response }: { request: VercelRequest, response: VercelResponse }): Promise<void> => {
-    response.status(200).json({
-        status: true,
-        message: `Request method ${request.method} received and logged.`,
-        method: request.method,
-    });
+const handleDefaultRequest = async ({ request, response }: { request: VercelRequest; response: VercelResponse }): Promise<void> => {
+	response.status(200).json({
+		status: true,
+		message: `Request method ${request.method} received and logged.`,
+		method: request.method,
+	});
 };
 
 const methodHandlers: MethodHandlers = {
-    GET: handleGetRequest,
-    PUT: handlePutRequest,
-    POST: handlePostRequest,
-    DELETE: handleDefaultRequest,
-    PATCH: handleDefaultRequest,
-    OPTIONS: handleDefaultRequest,
-    HEAD: handleDefaultRequest,
+	GET: handleGetRequest,
+	PUT: handlePutRequest,
+	POST: handlePostRequest,
+	DELETE: handleDefaultRequest,
+	PATCH: handleDefaultRequest,
+	OPTIONS: handleDefaultRequest,
+	HEAD: handleDefaultRequest,
 };
 
 const handler = async (request: VercelRequest, response: VercelResponse) => {
-    try {
-        const method = request.method as keyof MethodHandlers;
+	try {
+		const method = request.method as keyof MethodHandlers;
 
-        if (method in methodHandlers) {
-            return methodHandlers[method]({ request, response });
-        }
+		if (method in methodHandlers) {
+			return methodHandlers[method]({ request, response });
+		}
 
-        response.status(405).json({
-            status: false,
-            message: `Method ${request.method} not allowed`,
-        });
-    } catch (error: any) {
-        response.status(500).json({
-            status: false,
-            message: `Error: ${error.message}`,
-        });
-    }
+		response.status(405).json({
+			status: false,
+			message: `Method ${request.method} not allowed`,
+		});
+	} catch (error: any) {
+		response.status(500).json({
+			status: false,
+			message: `Error: ${error.message}`,
+		});
+	}
 };
 
 export default handler;
@@ -173,14 +177,12 @@ Add this configuration in your `vercel.json` file:
 
 ```json
 {
-  "functions": {
-    "api/serverless.ts": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  },
-  "rewrites": [
-    { "source": "/", "destination": "/api/serverless" }
-  ]
+	"functions": {
+		"api/serverless.ts": {
+			"memory": 1024,
+			"maxDuration": 60
+		}
+	},
+	"rewrites": [{ "source": "/", "destination": "/api/serverless" }]
 }
 ```

@@ -12,12 +12,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { capitalize } from '../utils/capitalize';
 
-export const handleGetRequest = async ({ request, response }: { request: VercelRequest, response: VercelResponse }): Promise<void> => {
-    const { name } = request.query;
-    const userName = Array.isArray(name) ? name[0] : name || '';
-    const pageTitle = userName ? `Hello ${capitalize(userName)}!` : 'Node.js Serverless Function²';
+export const handleGetRequest = async ({ request, response }: { request: VercelRequest; response: VercelResponse }): Promise<void> => {
+	const { name } = request.query;
+	const userName = Array.isArray(name) ? name[0] : name || '';
+	const pageTitle = userName ? `Hello ${capitalize(userName)}!` : 'Node.js Serverless Function²';
 
-    const htmlContent = `
+	const htmlContent = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -143,6 +143,6 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
         </html>
     `;
 
-    response.setHeader('Content-Type', 'text/html');
-    response.send(htmlContent);
+	response.setHeader('Content-Type', 'text/html');
+	response.send(htmlContent);
 };

@@ -26,45 +26,48 @@ import { handlePostRequest } from '../functions/handlePostRequest';
  */
 
 type MethodHandlers = {
-    [key in 'GET' | 'PUT' | 'POST' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD']: (params: { request: VercelRequest, response: VercelResponse }) => Promise<void>;
+	[key in 'GET' | 'PUT' | 'POST' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD']: (params: {
+		request: VercelRequest;
+		response: VercelResponse;
+	}) => Promise<void>;
 };
 
-const handleDefaultRequest = async ({ request, response }: { request: VercelRequest, response: VercelResponse }): Promise<void> => {
-    response.status(200).json({
-        status: true,
-        message: `Request method ${request.method} received and logged.`,
-        method: request.method,
-    });
+const handleDefaultRequest = async ({ request, response }: { request: VercelRequest; response: VercelResponse }): Promise<void> => {
+	response.status(200).json({
+		status: true,
+		message: `Request method ${request.method} received and logged.`,
+		method: request.method,
+	});
 };
 
 const methodHandlers: MethodHandlers = {
-    GET: handleGetRequest,
-    PUT: handlePutRequest,
-    POST: handlePostRequest,
-    DELETE: handleDefaultRequest,
-    PATCH: handleDefaultRequest,
-    OPTIONS: handleDefaultRequest,
-    HEAD: handleDefaultRequest,
+	GET: handleGetRequest,
+	PUT: handlePutRequest,
+	POST: handlePostRequest,
+	DELETE: handleDefaultRequest,
+	PATCH: handleDefaultRequest,
+	OPTIONS: handleDefaultRequest,
+	HEAD: handleDefaultRequest,
 };
 
 const handler = async (request: VercelRequest, response: VercelResponse) => {
-    try {
-        const method = request.method as keyof MethodHandlers;
+	try {
+		const method = request.method as keyof MethodHandlers;
 
-        if (method in methodHandlers) {
-            return methodHandlers[method]({ request, response });
-        }
+		if (method in methodHandlers) {
+			return methodHandlers[method]({ request, response });
+		}
 
-        response.status(405).json({
-            status: false,
-            message: `Method ${request.method} not allowed`,
-        });
-    } catch (error: any) {
-        response.status(500).json({
-            status: false,
-            message: `Error: ${error.message}`,
-        });
-    }
+		response.status(405).json({
+			status: false,
+			message: `Method ${request.method} not allowed`,
+		});
+	} catch (error: any) {
+		response.status(500).json({
+			status: false,
+			message: `Error: ${error.message}`,
+		});
+	}
 };
 
 export default handler;

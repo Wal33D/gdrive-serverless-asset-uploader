@@ -11,24 +11,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { capitalize } from '../utils/capitalize';
 
-export const handlePostRequest = async ({ request, response }: { request: VercelRequest, response: VercelResponse }): Promise<void> => {
-    let status = false;
-    let message = '';
-    let method = 'POST';
+export const handlePostRequest = async ({ request, response }: { request: VercelRequest; response: VercelResponse }): Promise<void> => {
+	let status = false;
+	let message = '';
+	let method = 'POST';
 
-    try {
-        const { name } = request.query;
-        const userName = Array.isArray(name) ? name[0] : name || 'World';
-        
-        message = `Hello ${capitalize(userName)}! POST request handled successfully`;
-        status = true;
-    } catch (error: any) {
-        message = `Error handling POST request: ${error.message}`;
-    }
+	try {
+		const { name } = request.query;
+		const userName = Array.isArray(name) ? name[0] : name || 'World';
 
-    response.json({
-        status,
-        message,
-        method,
-    });
+		message = `Hello ${capitalize(userName)}! POST request handled successfully`;
+		status = true;
+	} catch (error: any) {
+		message = `Error handling POST request: ${error.message}`;
+	}
+
+	response.json({
+		status,
+		message,
+		method,
+	});
 };
