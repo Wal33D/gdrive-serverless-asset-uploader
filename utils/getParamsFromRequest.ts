@@ -1,5 +1,6 @@
+import { URL } from 'url';
 import { VercelRequest } from '@vercel/node';
-import { URL } from 'url'; // Import URL to parse fileUrl
+import { RequestParams } from '../types';
 
 // Function to get user from the request
 const getUserFromRequest = (req: VercelRequest): { status: boolean; userName: string } => {
@@ -14,7 +15,7 @@ const extractParams = (req: VercelRequest, key: string) => {
 };
 
 // Helper function to consolidate and check parameters for file URL operations
-export const getParamsFromRequest = (req: VercelRequest) => {
+export const getParamsFromRequest = (req: VercelRequest): RequestParams => {
 	const fileUrl = extractParams(req, 'fileUrl');
 	if (!fileUrl) {
 		throw new Error('File URL is required but was not provided.');
@@ -31,12 +32,20 @@ export const getParamsFromRequest = (req: VercelRequest) => {
 	}
 
 	// Get the user from the request
-	const { userName } = getUserFromRequest(req);
+	const { userName: user } = getUserFromRequest(req);
 	const folderId = extractParams(req, 'folderId') || 'root'; // Default folderId to 'root' if not specified
-	const folderName = extractParams(req, 'folderName') || userName; // Default folderName to userName if not specified
+	const folderName = extractParams(req, 'folderName');
 
-	// Status is true only if fileUrl is detected, ensuring the necessity of a file URL for operations
-	const status = !!fileUrl;
+	// Handle setPublic parameter, default to true
+	const setPublicParam = extractParams(req, 'setPublic');
+	const setPublic = setPublicParam === undefined ? true : setPublicParam === 'true' || setPublicParam === true; // Default to true if not specified
 
-	return { status, fileUrl, fileName, userName, folderId, folderName };
+	// Handle reUpload parameter, default to false
+	const reUploadParam = extractParams(req, 'reUpload');
+	const reUpload = reUploadParam === 'true' || reUploadParam === true; // Handle both string and boolean true
+
+	// Construct the path array
+	const path = folderName ? [user, folderName] : [user];
+
+	return { fileUrl, fileName, user, folderId, folderName, setPublic, reUpload, path };
 };

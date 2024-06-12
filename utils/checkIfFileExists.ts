@@ -1,8 +1,27 @@
-export async function checkIfFileExists({ fileName, folderName, user, db }) {
-	const filesCollection = db.collection('files');
-	return await filesCollection.findOne({
+import { Db } from 'mongodb';
+import { FileDocument, FileExistsResponse } from '../types';
+
+export async function checkIfFileExists({
+	fileName,
+	folderName,
+	user,
+	database,
+}: {
+	fileName: string;
+	folderName: string;
+	user: string;
+	database: Db;
+}): Promise<FileExistsResponse> {
+	const filesCollection = database.collection<FileDocument>('files');
+	const document = await filesCollection.findOne({
 		fileName,
-		folderName, // Check this too if you add it to your MongoDB document
+		folderName,
 		user,
 	});
+
+	return {
+		exists: !!document,
+		document: document || undefined,
+	};
 }
+export { FileDocument };

@@ -1,109 +1,61 @@
 import axios from 'axios';
-import { google } from 'googleapis';
-import { MongoClient, Db } from 'mongodb';
+import { drive_v3 } from 'googleapis';
+import { setFilePublic } from '../utils/setFilePublic';
+import { getDriveClient } from '../utils/getDriveClient';
 import { checkIfFileExists } from '../utils/checkIfFileExists';
-import { findOrCreateFolder } from '../utils/findOrCreateFolder';
 import { getParamsFromRequest } from '../utils/getParamsFromRequest';
+import { findOrCreateNestedFolder } from '../utils/findOrCreateNestedFolder';
+import { FileDocument, RequestParams } from '../types';
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
 
-// MongoDB connection setup
-const { DB_USERNAME: dbUsername = '', DB_PASSWORD: dbPassword = '', DB_NAME: dbName = '', DB_CLUSTER: dbClusterName = '' } = process.env;
-
-const uri = `mongodb+srv://${encodeURIComponent(dbUsername)}:${encodeURIComponent(dbPassword)}@${dbClusterName}/?retryWrites=true&w=majority`;
-
-let client: MongoClient | null = null;
-let db: Db | null = null;
-
-const connectWithRetry = async (uri: string, attempts = 5): Promise<MongoClient> => {
-	for (let attempt = 1; attempt <= attempts; attempt++) {
-		try {
-			const client = new MongoClient(uri);
-			await client.connect();
-			return client;
-		} catch (error) {
-			console.error(`Attempt ${attempt} failed: ${(error as Error).message}`);
-			if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-			else throw error;
-		}
-	}
-	throw new Error('Connection attempts exceeded.');
-};
-
-async function streamDownloader({ fileUrl, fileName, folderName, folderId, driveClients, db, user }) {
-	const filesCollection = db.collection('files');
-	const indexCollection = db.collection('index');
-
-	// Check if file already exists in the database
-	const existingFile = await filesCollection.findOne({ fileName, folderId });
-	if (existingFile) {
-		return existingFile;
-	}
-
+async function streamDownloader({
+	fileUrl,
+	fileName,
+	user,
+	path,
+	setPublic,
+	drive,
+	ownerEmail,
+}: {
+	fileUrl: string;
+	fileName: string;
+	user: string;
+	path: string[];
+	setPublic: boolean;
+	drive: drive_v3.Drive;
+	ownerEmail: string;
+}): Promise<FileDocument> {
 	const response = await axios({
 		method: 'get',
 		url: fileUrl,
 		responseType: 'stream',
 	});
 
-	// Initialize the drive index if it does not exist
-	const indexDoc = await indexCollection.findOneAndUpdate(
-		{ name: 'driveIndex' },
-		{ $inc: { currentDriveIndex: 1 } },
-		{ returnOriginal: true, upsert: true }
-	);
+	const folderId = await findOrCreateNestedFolder(drive, path);
 
-	if (!indexDoc.currentDriveIndex) {
-		await indexCollection.insertOne({ name: 'driveIndex', currentDriveIndex: 1 });
-		indexDoc.currentDriveIndex = { currentDriveIndex: 1 };
+	const uploadResult = await streamUploadToGoogleDrive({
+		fileStream: response.data,
+		fileName,
+		folderId,
+		drive,
+	});
+
+	if (setPublic) {
+		await setFilePublic(drive, uploadResult.id);
 	}
-
-	const clientIndex = (indexDoc.currentDriveIndex ?? 1) % driveClients.length;
-	const drive = driveClients[clientIndex];
-
-	// Ensure the user folder exists and get its folderId and folderName
-	const { folderId: userFolderId, folderName: userFolderName } = await findOrCreateFolder(drive, user, 'root');
-
-	const uploadResult = await streamUploadToGoogleDrive({ fileStream: response.data, fileName, folderId: userFolderId, drive });
 
 	const fileMetadata = {
 		fileName,
-		folderId: userFolderId,
-		folderName: folderName || userFolderName, // New field for folder name
-		user, // Add the user information to the metadata
+		folderId,
+		folderName: path.join('/'),
+		user,
+		ownerEmail,
 		...uploadResult,
 	};
 
-	// Save file metadata to the database
-	await filesCollection.insertOne(fileMetadata);
-
 	return fileMetadata;
 }
-
-const getServiceAccountClients = async () => {
-	const serviceAccountsJson = Object.keys(process.env)
-		.filter(key => key.startsWith('SERVICE_ACCOUNT_JSON_'))
-		.map(key => JSON.parse(process.env[key] as string));
-
-	const clients = await Promise.all(
-		serviceAccountsJson.map(async credentials => {
-			const auth: any = new google.auth.GoogleAuth({
-				credentials,
-				scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
-			});
-			const client = await auth.getClient();
-			return google.drive({ version: 'v3', auth: client });
-		})
-	);
-	return clients;
-};
-
-const connectToMongo = async (): Promise<Db> => {
-	if (!client) {
-		client = await connectWithRetry(uri);
-		db = client.db(dbName);
-	}
-	return db as Db;
-};
 
 const streamUploadToGoogleDrive = async ({ fileStream, fileName, folderId, drive }) => {
 	const fileMetadata = { name: fileName, parents: [folderId] };
@@ -112,13 +64,7 @@ const streamUploadToGoogleDrive = async ({ fileStream, fileName, folderId, drive
 	const uploadResponse = await drive.files.create({
 		requestBody: fileMetadata,
 		media: media,
-		fields: 'id, name, mimeType, webViewLink, webContentLink, parents, version',
-	});
-
-	// Set the uploaded file to public
-	await drive.permissions.create({
-		fileId: uploadResponse.data.id,
-		requestBody: { type: 'anyone', role: 'reader' },
+		fields: 'id, name, mimeType, size, md5Checksum, sha1Checksum, sha256Checksum, starred, trashed, parents, webViewLink, webContentLink, iconLink, createdTime, modifiedTime, quotaBytesUsed, owners(kind,displayName,photoLink,me,permissionId,emailAddress), permissions(id,type,emailAddress,role,displayName,photoLink,deleted)',
 	});
 
 	// Generate export download URL
@@ -129,27 +75,35 @@ const streamUploadToGoogleDrive = async ({ fileStream, fileName, folderId, drive
 
 const handler = async (req: VercelRequest, res: VercelResponse) => {
 	try {
-		const db = await connectToMongo();
-		const driveClients = await getServiceAccountClients();
-		const { status, fileUrl, fileName, folderId, folderName, userName } = getParamsFromRequest(req);
+		const database = await connectToMongo();
+		const { fileUrl, fileName, folderName, user, setPublic, reUpload, path } = getParamsFromRequest(req) as RequestParams;
 
-		if (!status) {
-			res.status(400).send('Missing or invalid file URL.');
-			return;
-		}
+		const { exists, document: existingFile } = await checkIfFileExists({ fileName, folderName, user, database });
 
-		const existingFile = await checkIfFileExists({ fileName, folderName, user: userName, db });
-		if (existingFile) {
-			console.log({ success: true, ...existingFile });
+		if (exists && !reUpload) {
 			res.status(200).json({ success: true, ...existingFile });
 			return;
 		}
 
-		const fileMetadata = await streamDownloader({ fileUrl, fileName, folderName, folderId, driveClients, db, user: userName });
+		const { driveClient, driveEmail } = await getDriveClient({ database });
+
+		const fileMetadata = await streamDownloader({
+			fileUrl,
+			fileName,
+			user,
+			path,
+			setPublic,
+			drive: driveClient,
+			ownerEmail: driveEmail,
+		});
+
+		await saveFileRecordToDB(fileMetadata);
+
 		res.status(200).json({ success: true, ...fileMetadata });
 	} catch (error) {
 		console.error('Failed to upload file:', error);
 		res.status(500).json({ success: false, error: error.message });
 	}
 };
+
 export default handler;
