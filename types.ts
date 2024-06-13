@@ -50,6 +50,7 @@ export interface FileExistsResponse {
 
 // Define the interface for the return type
 export interface RequestParams {
+	base64File?: any;
 	fileUrl: string;
 	fileName: string;
 	user: string;

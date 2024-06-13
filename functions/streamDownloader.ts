@@ -55,7 +55,7 @@ export async function streamDownloader({
 	return fileMetadata;
 }
 
-const streamUploadToGoogleDrive = async ({
+export const streamUploadToGoogleDrive = async ({
 	fileStream,
 	fileName,
 	folderId,
