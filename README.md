@@ -1,7 +1,5 @@
 # 🚀 Serverless Google Drive Uploader 📂
 
----
-
 ## <img src="https://repository-images.githubusercontent.com/813896317/558c60d3-4272-44ca-b907-2a4f5ba424f7" alt="Background Image" style="width:100%; border-radius: 10px;"/>
 
 ## 🌟 Features
