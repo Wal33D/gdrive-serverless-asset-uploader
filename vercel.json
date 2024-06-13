@@ -3,6 +3,18 @@
 		"api/serverless.ts": {
 			"memory": 1024,
 			"maxDuration": 60
+		},
+		"api/resetDrives.ts": {
+			"memory": 1024,
+			"maxDuration": 60
+		},
+		"api/status.ts": {
+			"memory": 1024,
+			"maxDuration": 60
+		},
+		"api/listFiles.ts": {
+			"memory": 1024,
+			"maxDuration": 60
 		}
 	},
 
