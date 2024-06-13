@@ -4,16 +4,17 @@ import { getDriveClient } from '../utils/getDriveClient';
 import { checkIfFileExists } from '../utils/checkIfFileExists';
 import { setFilePermissions } from '../utils/setFilePermissions';
 import { getParamsFromRequest } from '../utils/getParamsFromRequest';
-import { formDataUploadToGoogleDrive } from './formDataUploadToGoogleDrive';
+import { formDataUploadToGoogleDrive } from '../functions/formDataUploadToGoogleDrive';
 import { FileDocument, RequestParams } from '../types';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
 
 export async function uploadFormDataToGoogleDrive(
-	req: VercelRequest
+	req: VercelRequest,
+	formData: { fields: formidable.Fields; files: formidable.Files }
 ): Promise<{ status: boolean; fileDocument: FileDocument | null; reUpload: boolean; foundInDB: boolean; error?: string }> {
 	try {
 		const database = await connectToMongo();
-		const { fileName, user, setPublic, reUpload, path, folderId, shareEmails } = getParamsFromRequest(req) as RequestParams;
+		const { fileName, user, setPublic, reUpload, path, folderId, shareEmails } = getParamsFromRequest(formData.fields) as RequestParams;
 
 		const { exists, document: existingFile } = await checkIfFileExists({ fileName, folderName: path, user, database });
 
@@ -27,9 +28,9 @@ export async function uploadFormDataToGoogleDrive(
 			({ driveClient, driveEmail } = await getDriveClient({ database }));
 		}
 
-		const form = new formidable.IncomingForm();
+		const file = formData.files.file as formidable.File;
 		const fileDocument: FileDocument = await formDataUploadToGoogleDrive({
-			form,
+			formData,
 			fileName,
 			folderId,
 			drive: driveClient,

@@ -1,15 +1,15 @@
-import formidable from 'formidable';
+import { IncomingForm } from 'formidable';
 import { drive_v3 } from 'googleapis';
 import fs from 'fs';
 
 export const formDataUploadToGoogleDrive = async ({
-	form,
+	formData,
 	fileName,
 	folderId,
 	drive,
 	fileId,
 }: {
-	form: formidable.IncomingForm;
+	formData: IncomingForm;
 	fileName: string;
 	folderId: string;
 	drive: drive_v3.Drive;
@@ -17,8 +17,8 @@ export const formDataUploadToGoogleDrive = async ({
 }) => {
 	const fileMetadata = { name: fileName };
 
-	const formData = await new Promise<{ [key: string]: formidable.File }>((resolve, reject) => {
-		form.parse((err, fields, files) => {
+	formData = await new Promise<{ [key: string]: IncomingForm.File }>((resolve, reject) => {
+		formData.parse((err, fields, files) => {
 			if (err) {
 				reject(err);
 			} else {
@@ -27,7 +27,7 @@ export const formDataUploadToGoogleDrive = async ({
 		});
 	});
 
-	const file = formData.file as formidable.File;
+	const file = formData.file as IncomingForm.File;
 	const media = { mimeType: file.mimetype, body: fs.createReadStream(file.filepath) };
 
 	let uploadResponse;
