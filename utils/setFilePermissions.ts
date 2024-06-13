@@ -3,7 +3,7 @@ import { drive_v3 } from 'googleapis';
 export const setFilePermissions = async ({
 	drive,
 	fileId,
-	setPublic = false,
+	setPublic = true,
 	shareEmails = [],
 }: {
 	drive: drive_v3.Drive;

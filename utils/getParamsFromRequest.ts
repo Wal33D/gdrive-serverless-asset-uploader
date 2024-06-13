@@ -17,7 +17,9 @@ const extractParams = (req: VercelRequest, key: string) => {
 // Helper function to consolidate and check parameters for file URL operations
 export const getParamsFromRequest = (req: VercelRequest): RequestParams => {
 	const fileUrl = extractParams(req, 'fileUrl');
-	if (!fileUrl) {
+	const base64File = extractParams(req, 'base64File');
+
+	if (!fileUrl && !base64File) {
 		throw new Error('File URL is required but was not provided.');
 	}
 
@@ -51,5 +53,5 @@ export const getParamsFromRequest = (req: VercelRequest): RequestParams => {
 	// Construct the path array
 	const path = folderName ? [user, folderName] : [user];
 
-	return { fileUrl, fileName, user, folderId, setPublic, reUpload, path, shareEmails };
+	return { base64File, fileUrl, fileName, user, folderId, setPublic, reUpload, path, shareEmails };
 };

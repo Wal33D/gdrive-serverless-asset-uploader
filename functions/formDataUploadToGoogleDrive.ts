@@ -1,71 +1,34 @@
-import axios from 'axios';
+import formidable from 'formidable';
 import { drive_v3 } from 'googleapis';
-import { FileDocument } from '../types';
+import fs from 'fs';
 
-import { findOrCreateNestedFolder } from '../utils/findOrCreateNestedFolder';
-
-export async function streamDownloader({
-	fileUrl,
-	fileName,
-	folderPath,
-	user,
-	path,
-	drive,
-	ownerEmail,
-	fileId, // Optional fileId for updating an existing file
-}: {
-	fileUrl: string;
-	fileName: string;
-	folderPath: string;
-	user: string;
-	path: string[];
-	drive: drive_v3.Drive;
-	ownerEmail: string;
-	fileId?: string;
-}): Promise<FileDocument> {
-	const response = await axios({
-		method: 'get',
-		url: fileUrl,
-		responseType: 'stream',
-	});
-
-	const folderId = await findOrCreateNestedFolder(drive, path);
-
-	const uploadResult = await streamUploadToGoogleDrive({
-		fileStream: response.data,
-		fileName,
-		folderId,
-		drive,
-		fileId, // Pass the fileId for updating if it exists
-	});
-
-	const fileMetadata: FileDocument = {
-		fileName,
-		folderId,
-		folderName: path.join('/'),
-		user,
-		ownerEmail,
-		...uploadResult,
-	};
-
-	return fileMetadata;
-}
-
-export const streamUploadToGoogleDrive = async ({
-	fileStream,
+export const formDataUploadToGoogleDrive = async ({
+	form,
 	fileName,
 	folderId,
 	drive,
 	fileId,
 }: {
-	fileStream: any;
+	form: formidable.IncomingForm;
 	fileName: string;
 	folderId: string;
 	drive: drive_v3.Drive;
 	fileId?: string;
 }) => {
 	const fileMetadata = { name: fileName };
-	const media = { mimeType: '*/*', body: fileStream };
+
+	const formData = await new Promise<{ [key: string]: formidable.File }>((resolve, reject) => {
+		form.parse((err, fields, files) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(files);
+			}
+		});
+	});
+
+	const file = formData.file as formidable.File;
+	const media = { mimeType: file.mimetype, body: fs.createReadStream(file.filepath) };
 
 	let uploadResponse;
 	if (fileId) {

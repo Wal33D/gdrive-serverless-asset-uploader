@@ -1,71 +1,21 @@
-import axios from 'axios';
+import fs from 'fs';
 import { drive_v3 } from 'googleapis';
-import { FileDocument } from '../types';
 
-import { findOrCreateNestedFolder } from '../utils/findOrCreateNestedFolder';
-
-export async function streamDownloader({
-	fileUrl,
-	fileName,
-	folderPath,
-	user,
-	path,
-	drive,
-	ownerEmail,
-	fileId, // Optional fileId for updating an existing file
-}: {
-	fileUrl: string;
-	fileName: string;
-	folderPath: string;
-	user: string;
-	path: string[];
-	drive: drive_v3.Drive;
-	ownerEmail: string;
-	fileId?: string;
-}): Promise<FileDocument> {
-	const response = await axios({
-		method: 'get',
-		url: fileUrl,
-		responseType: 'stream',
-	});
-
-	const folderId = await findOrCreateNestedFolder(drive, path);
-
-	const uploadResult = await streamUploadToGoogleDrive({
-		fileStream: response.data,
-		fileName,
-		folderId,
-		drive,
-		fileId, // Pass the fileId for updating if it exists
-	});
-
-	const fileMetadata: FileDocument = {
-		fileName,
-		folderId,
-		folderName: path.join('/'),
-		user,
-		ownerEmail,
-		...uploadResult,
-	};
-
-	return fileMetadata;
-}
-
-export const streamUploadToGoogleDrive = async ({
-	fileStream,
+export const localFileUploadToGoogleDrive = async ({
+	filePath,
 	fileName,
 	folderId,
 	drive,
 	fileId,
 }: {
-	fileStream: any;
+	filePath: string;
 	fileName: string;
 	folderId: string;
 	drive: drive_v3.Drive;
 	fileId?: string;
 }) => {
 	const fileMetadata = { name: fileName };
-	const media = { mimeType: '*/*', body: fileStream };
+	const media = { mimeType: '*/*', body: fs.createReadStream(filePath) };
 
 	let uploadResponse;
 	if (fileId) {

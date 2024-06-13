@@ -10,7 +10,7 @@ const searchFiles = async (query: any) => {
 
 	// Add conditions to searchQuery based on the provided query parameters
 	if (query._id) searchQuery._id = query._id;
-	if (query.fileName) searchQuery.fileName = query.fileName;
+	if (query.fileName) searchQuery.name = query.fileName;
 	if (query.folderId) searchQuery.folderId = query.folderId;
 	if (query.folderName) searchQuery.folderName = query.folderName;
 	if (query.user) searchQuery.user = query.user;

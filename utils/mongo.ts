@@ -1,5 +1,5 @@
 import { FileDocument } from './checkIfFileExists';
-import { MongoClient, Db } from 'mongodb';
+import { MongoClient, Db, Collection } from 'mongodb';
 
 const { DB_USERNAME: dbUsername = '', DB_PASSWORD: dbPeerPassword = '', DB_NAME: dbName = '', DB_CLUSTER: dbClusterName = '' } = process.env;
 const uri = `mongodb+srv://${encodeURIComponent(dbUsername)}:${encodeURIComponent(dbPeerPassword)}@${dbClusterName}/?retryWrites=true&w=majority`;
@@ -62,12 +62,13 @@ export async function saveFileRecordToDB(fileMetadata: FileDocument): Promise<{ 
 		throw new Error('Database is not connected. Ensure connectToMongo is called before.');
 	}
 
-	const filesCollection = db.collection<FileDocument>('files');
-	const insertResult = await filesCollection.insertOne(fileMetadata);
+	const filesCollection: Collection<FileDocument> = db.collection<FileDocument>('files');
+
+	const updateResult = await filesCollection.updateOne({ id: fileMetadata.id }, { $set: fileMetadata }, { upsert: true });
 
 	return {
-		status: insertResult.acknowledged,
-		id: insertResult.insertedId.toString(),
+		status: updateResult.acknowledged,
+		id: fileMetadata.id,
 	};
 }
 

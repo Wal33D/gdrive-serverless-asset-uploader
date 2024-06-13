@@ -1,18 +1,18 @@
 import { VercelRequest } from '@vercel/node';
 import { getDriveClient } from '../utils/getDriveClient';
-import { streamDownloader } from '../functions/streamDownloader';
 import { checkIfFileExists } from '../utils/checkIfFileExists';
+import { setFilePermissions } from '../utils/setFilePermissions';
 import { getParamsFromRequest } from '../utils/getParamsFromRequest';
+import { base64UploadToGoogleDrive } from '../utils/base64UploadToGoogleDrive';
 import { FileDocument, RequestParams } from '../types';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
-import { setFilePermissions } from '../utils/setFilePermissions';
 
-export async function streamToGoogleFromUrl(
+export async function uploadBase64ToGoogleDrive(
 	req: VercelRequest
 ): Promise<{ status: boolean; fileDocument: FileDocument | null; reUpload: boolean; foundInDB: boolean; error?: string }> {
 	try {
 		const database = await connectToMongo();
-		const { fileUrl, fileName, user, setPublic, reUpload, path, shareEmails } = getParamsFromRequest(req) as RequestParams;
+		const { base64File, fileName, user, setPublic, reUpload, path, folderId, shareEmails } = getParamsFromRequest(req) as RequestParams;
 
 		const { exists, document: existingFile } = await checkIfFileExists({ fileName, folderName: path, user, database });
 
@@ -29,19 +29,16 @@ export async function streamToGoogleFromUrl(
 		}
 
 		// Pass the existing fileId if reUploading
-		const fileDocument: FileDocument = await streamDownloader({
-			fileUrl,
+		const fileDocument: FileDocument = await base64UploadToGoogleDrive({
+			base64File,
 			fileName,
-			folderPath: path,
-			user,
-			path,
+			folderId,
 			drive: driveClient,
-			ownerEmail: driveEmail,
 			fileId: reUpload && exists ? existingFile?.id : undefined, // Use existing fileId if reUploading
 		});
 
-		if (setPublic) {
-			await setFilePermissions({ drive: driveClient, fileId: fileDocument.id, shareEmails: shareEmails || undefined });
+		if (setPublic || (shareEmails && shareEmails.length > 0)) {
+			await setFilePermissions({ drive: driveClient, fileId: fileDocument.id, setPublic, shareEmails });
 		}
 
 		await saveFileRecordToDB(fileDocument);
