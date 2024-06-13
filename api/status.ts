@@ -15,16 +15,32 @@ export const getDriveStats = async (): Promise<DriveStats> => {
 	const recentStats: any = await statsCollection.findOne({ timestamp: { $gte: oneHourAgo } });
 
 	if (recentStats) {
+		// Start an async update in the background
+		updateDriveStatsInBackground(db);
 		return recentStats;
 	}
 
+	// If no recent stats, fetch new ones synchronously
+	const newStats = await fetchAndSaveDriveStats(db);
+	return newStats;
+};
+
+const updateDriveStatsInBackground = async (db: any) => {
+	try {
+		await fetchAndSaveDriveStats(db);
+	} catch (error) {
+		console.error('Error updating drive stats in the background:', error);
+	}
+};
+
+const fetchAndSaveDriveStats = async (db: any): Promise<DriveStats> => {
 	const { driveClients, driveEmails, count } = await getServiceAccountClients();
 	let totalFiles = 0;
 	let totalFolders = 0;
 	let totalUsedSpace = 0;
 	const drives: { ownerEmail: string; spaceUsed: string; percentSpaceRemaining: string }[] = [];
 	const totalSpaceMB = count * 14 * 1024; // Total space in MB
-	const totalSpace = totalSpaceMB.toFixed(2) + 'MB'; // Total space in MB
+	const totalSpace = (totalSpaceMB / 1024).toFixed(2) + 'GB'; // Total space in GB
 
 	for (let i = 0; i < count; i++) {
 		const drive = driveClients[i];
@@ -70,8 +86,7 @@ export const getDriveStats = async (): Promise<DriveStats> => {
 	};
 
 	// Save the stats to the database
-	await statsCollection.insertOne(consolidated);
-
+	await db.collection('driveStats').insertOne(consolidated);
 	return consolidated;
 };
 
@@ -83,6 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 	await authorizeRequest(req);
 
 	try {
+		res.setHeader('Cache-Control', 's-maxage=17200, stale-while-revalidate');
 		const stats = await getDriveStats();
 		res.status(200).json({
 			status: true,
