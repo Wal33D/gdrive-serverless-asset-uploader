@@ -15,7 +15,15 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
 		const totalUsage = stats.totalUsedSpace;
 		const percentRemaining = stats.percentSpaceRemaining;
 		const storageClusterName = stats.storageClusterName;
+		const totalSpaceMB = parseFloat(stats.totalSpace.replace('MB', ''));
+		const totalSpaceGB = (totalSpaceMB / 1024).toFixed(2) + ' GB';
 
+		//@ts-ignore
+		const lastModified = new Date(stats.timestamp).toLocaleDateString('en-US', {
+			month: '2-digit',
+			day: '2-digit',
+			year: '2-digit',
+		});
 		const driveDetails = stats.drives.map((drive, index) => `Drive ${index + 1}: ${drive.percentSpaceRemaining} remaining`).join('<br>');
 
 		const htmlContent = `
@@ -118,8 +126,8 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
             }
             .tile:hover .drive-details {
               display: block;
-              border-radiusL4px;
-              border:dashed 1px #bb86fc;
+              border-radius: 4px;
+              border: dashed 1px #bb86fc;
             }
             .circular-progress {
               position: relative;
@@ -160,15 +168,15 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
               height: 36px;
             }
             .github-icon{
-            font-weight:0;
-             font-size: 3rem;
+            font-weight: 0;
+            font-size: 3rem;
             }
           </style>
         </head>
         <body>
           <div class="container">
             <h1>${pageTitle}</h1>
-            <p>This cool serverless app lets you upload files to Google Drive with virtually infinite storage by spreading them across multiple 15GB free service worker Google Drive buckets. Add as many as youd like! 🚀📂</p>
+            <p>This cool serverless app lets you upload files to Google Drive with virtually infinite storage by spreading them across multiple 15GB free service worker Google Drive buckets. Add as many as you'd like! 🚀📂</p>
             <div class="stats-container">
               <div class="tile-container">
                 <div class="tile">
@@ -178,17 +186,18 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
                   <div class="drive-details">${driveDetails}</div>
                 </div>
                 <div class="tile">
+                  <i class="fa fa-file"></i>
+                  <strong>${totalFilesStored} Files Stored</strong>
+                <h6>Last Modified: ${lastModified}</h6>
+                </div>
+                 <div class="tile">
                 <img src="https://res.cloudinary.com/aquataze/image/upload/v1718073479/gdrive.png" alt="Google Drive Logo" class="drive-logo">
                 <strong>Google Drive</strong>
                 </div>
                 <div class="tile">
-                  <i class="fa fa-file"></i>
-                  <strong>${totalFilesStored} Files Stored</strong>
-                </div>
-                <div class="tile">
                   <i class="fa fa-database"></i>
-                  <strong>Total Usage</strong>
-                  <span>${totalUsage}</span>
+                  <h6>Used Space: ${totalUsage}</h6>
+                  <h6>Total Space: ${totalSpaceGB}</h6>
                 </div>
                 <div class="tile">
                   <div class="circular-progress">
@@ -206,13 +215,12 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
               </div>
             </div>
             <footer>
-                      <p class="link">
-            <i class="fa fa-github github-icon"></i>      
-                </p>
-
-            <h6>Check out the code on GitHub: <a href="https://github.com/Wal33D/serverless-gdrive-uploader" target="_blank">https://github.com/Wal33D/serverless-gdrive-uploader</a></h6>
-              <h6> Made with ❤️ by Waleed Judah</h5>
-               <h6> Storage Cluster Name: ${storageClusterName}</h5>
+              <p class="link">
+                <i class="fa fa-github github-icon"></i>
+              </p>
+              <h6>Check out the code on GitHub: <a href="https://github.com/Wal33D/gdrive-serverless-asset-uploader" target="_blank">https://github.com/Wal33D/gdrive-serverless-asset-uploader</a></h6>
+              <h6> Made with ❤️ by Waleed Judah</h6>
+              <h6> Storage Cluster Name: ${storageClusterName}</h6>
             </footer>
           </div>
         </body>
