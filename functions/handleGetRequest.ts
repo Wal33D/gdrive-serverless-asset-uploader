@@ -15,8 +15,7 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
 		const totalUsage = stats.totalUsedSpace;
 		const percentRemaining = stats.percentSpaceRemaining;
 		const storageClusterName = stats.storageClusterName;
-		const totalSpaceMB = parseFloat(stats.totalSpace.replace('MB', ''));
-		const totalSpaceGB = (totalSpaceMB / 1024).toFixed(2) + ' GB';
+		const totalSpaceGB = `${parseFloat(stats.totalSpace.replace('MB', ''))} GB`;
 
 		//@ts-ignore
 		const lastModified = new Date(stats.timestamp).toLocaleDateString('en-US', {
