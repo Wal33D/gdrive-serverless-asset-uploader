@@ -1,6 +1,8 @@
 # 🚀 Serverless Google Drive Uploader 📂
 
-This project provides a set of Vercel serverless functions to manage and interact with Google Drive, including uploading files, resetting drives, and retrieving drive statistics.
+---
+
+## <img src="https://repository-images.githubusercontent.com/813896317/558c60d3-4272-44ca-b907-2a4f5ba424f7" alt="Background Image" style="width:100%; border-radius: 10px;"/>
 
 ## 🌟 Features
 
@@ -106,5 +108,3 @@ This project is licensed under the MIT License.
 ---
 
 Made with ❤️ by Waleed Judah
-
-<img src="https://repository-images.githubusercontent.com/813896317/558c60d3-4272-44ca-b907-2a4f5ba424f7" alt="Background Image" style="width:100%; border-radius: 10px;"/>
