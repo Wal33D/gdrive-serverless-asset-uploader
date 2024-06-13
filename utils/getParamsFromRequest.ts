@@ -4,8 +4,8 @@ import { RequestParams } from '../types';
 
 // Function to get user from the request
 const getUserFromRequest = (req: VercelRequest): { status: boolean; userName: string } => {
-	const userName = req.body?.user || req.query?.user || 'anonymous';
-	const status = !!(req.body?.user || req.query?.user);
+	const userName = (req.headers['user'] as string) || req.body?.user || req.query?.user || 'anonymous';
+	const status = !!(req.headers['user'] || req.body?.user || req.query?.user);
 	return { status, userName };
 };
 
@@ -42,10 +42,13 @@ export const getParamsFromRequest = (req: VercelRequest): RequestParams => {
 
 	// Handle reUpload parameter, default to false
 	const reUploadParam = extractParams(req, 'reUpload');
-	const reUpload = reUploadParam === 'true' || reUploadParam === true; // Handle both string and boolean true
+	const reUpload =
+		reUploadParam === undefined || reUploadParam === 'false' || reUploadParam === false
+			? false
+			: reUploadParam === 'true' || reUploadParam === true; // Default to false if not specified
 
 	// Construct the path array
 	const path = folderName ? [user, folderName] : [user];
 
-	return { fileUrl, fileName, user, folderId, folderName, setPublic, reUpload, path };
+	return { fileUrl, fileName, user, folderId, setPublic, reUpload, path };
 };

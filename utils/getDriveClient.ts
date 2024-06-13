@@ -1,6 +1,7 @@
 import { Db } from 'mongodb';
 import { drive_v3 } from 'googleapis';
 import { getServiceAccountClients } from './getServiceAccountClients';
+import { incrementDriveIndex } from './mongo';
 
 interface DriveClientResponse {
 	driveClient: drive_v3.Drive;
@@ -8,34 +9,27 @@ interface DriveClientResponse {
 	driveEmail: string;
 }
 
-export const getDriveClient = async ({ database }: { database: Db }): Promise<DriveClientResponse> => {
-	const indexCollection = database.collection('index');
+export const getDriveClient = async ({ database, overrideEmail }: { database: Db; overrideEmail?: string }): Promise<DriveClientResponse> => {
 	const { driveClients, driveEmails, count } = await getServiceAccountClients();
 
-	// Initialize the drive index if it does not exist
-	const indexDoc: any = await indexCollection.findOneAndUpdate(
-		{ name: 'driveIndex' },
-		{ $inc: { currentDriveIndex: 1 } },
-		{ returnDocument: 'after', upsert: true }
-	);
+	let driveClient: drive_v3.Drive;
+	let driveEmail: string;
+	let currentIndex: number;
 
-	let currentDriveIndex = indexDoc.value?.currentDriveIndex;
-
-	if (!currentDriveIndex) {
-		currentDriveIndex = 1;
-		await indexCollection.insertOne({ name: 'driveIndex', currentDriveIndex });
+	// Check if overrideEmail is provided
+	if (overrideEmail && driveEmails.includes(overrideEmail)) {
+		currentIndex = driveEmails.indexOf(overrideEmail);
+		driveClient = driveClients[currentIndex] as drive_v3.Drive;
+		driveEmail = driveEmails[currentIndex];
+	} else {
+		// Retrieve the updated currentDriveIndex value
+		let { currentDriveIndex } = await incrementDriveIndex({ database, count });
+		driveClient = driveClients[currentDriveIndex] as drive_v3.Drive;
+		driveEmail = driveEmails[currentDriveIndex];
+		currentIndex = currentDriveIndex;
 	}
 
-	// Ensure the index wraps around correctly
-	const currentIndex = (currentDriveIndex - 1) % count;
-
-	// Update the index in the database if needed
-	if (currentIndex !== currentDriveIndex - 1) {
-		await indexCollection.updateOne({ name: 'driveIndex' }, { $set: { currentDriveIndex: currentIndex + 1 } });
-	}
-
-	const driveClient = driveClients[currentIndex] as drive_v3.Drive;
-	const driveEmail = driveEmails[currentIndex];
+	console.log(`Current Index: ${currentIndex}, Drive Email: ${driveEmail}`);
 
 	return { driveClient, driveIndex: currentIndex, driveEmail };
 };

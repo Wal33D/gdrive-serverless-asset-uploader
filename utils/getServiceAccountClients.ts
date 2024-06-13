@@ -21,6 +21,6 @@ export const getServiceAccountClients = async (): Promise<ServiceAccountClientsR
 	return {
 		driveClients: clients,
 		driveEmails: emails,
-		count: clients.length,
+		count: emails.length,
 	};
 };

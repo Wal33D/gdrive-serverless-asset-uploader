@@ -45,7 +45,7 @@ export interface FileDocument {
 
 export interface FileExistsResponse {
 	exists: boolean;
-	document?: FileDocument;
+	document: FileDocument | null;
 }
 
 // Define the interface for the return type
@@ -55,7 +55,6 @@ export interface RequestParams {
 	user: string;
 	path: any;
 	folderId: string;
-	folderName: string;
 	setPublic: boolean;
 	reUpload: boolean;
 }
@@ -65,3 +64,21 @@ export type ServiceAccountClientsResult = {
 	driveEmails: string[];
 	count: number;
 };
+
+export interface DriveStats {
+	numberOfDrives: number;
+	totalFiles: number;
+	totalFolders: number;
+	totalUsedSpace: string;
+	totalSpace: string;
+	percentSpaceRemaining: string;
+	nextDriveIndex: number;
+	appTitle: string;
+	storageClusterName: string;
+	drives: {
+		ownerEmail: string;
+		spaceUsed: string;
+		percentSpaceRemaining: string;
+	}[];
+	timestamp?: Date;
+}

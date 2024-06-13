@@ -8,20 +8,22 @@ export async function checkIfFileExists({
 	database,
 }: {
 	fileName: string;
-	folderName: string;
+	folderName: string[];
 	user: string;
 	database: Db;
 }): Promise<FileExistsResponse> {
 	const filesCollection = database.collection<FileDocument>('files');
+	let path = folderName.join('/');
+
 	const document = await filesCollection.findOne({
 		fileName,
-		folderName,
+		folderName: path,
 		user,
 	});
 
 	return {
 		exists: !!document,
-		document: document || undefined,
+		document: document || null,
 	};
 }
 export { FileDocument };
