@@ -1,179 +1,74 @@
-# Node.js Serverless Function Enhanced Starter
+# 🚀 Serverless Google Drive Uploader 📂
 
-This repository contains a simple Node.js serverless function setup with Vercel. It demonstrates handling different HTTP methods (GET, PUT, POST, DELETE, PATCH, OPTIONS, HEAD) using Vercel's serverless functions. This enhanced starter also includes examples of how to handle requests and provide appropriate responses.
+This project provides a set of Vercel serverless functions to manage and interact with Google Drive, including uploading files, resetting drives, and retrieving drive statistics.
 
-## Features
+## 🌟 Features
 
--   Handles multiple HTTP methods: GET, PUT, POST, DELETE, PATCH, OPTIONS, HEAD.
--   Returns JSON responses for unsupported methods, indicating the request type.
--   Demonstrates the use of TypeScript for type safety and modern JavaScript features.
--   Includes example HTML content with Bootstrap for styling.
+-   **In-memory (RAM) Streaming**: 🧠 Enables efficient uploads by streaming files directly from memory, making it suitable for serverless environments and cloud deployments.
+-   **Multi-account Storage**: 🗂️ Combine the storage of multiple Google Drive service accounts, providing a massive pool of free storage.
+-   **Automated File Management**: 🤖 Automatically distributes files across multiple Google Drive accounts and records all uploads in a MongoDB database.
 
-## Deployment
+This serverless function allows you to upload folders and files to Google Drive, automatically distributing the files across multiple Google Drive accounts. It ensures that all uploaded files are recorded in a MongoDB database, providing consistent and reliable file management. The function leverages in-memory (RAM) streaming for uploads, making it ideal for serverless setups and cloud environments.
 
-You can deploy this project using Vercel. Follow the instructions below to get started.
+Additionally, this solution can accept as many Google Drive service accounts as you want, combining all their storage into a massive pool of free storage space.
 
-### One-Click Deploy
+## 📑 Endpoints
 
-Deploy the example using Vercel, Import the repository as a 3rd Party Repo, and deploy the project
-https://github.com/Wal33D/serverless-vercel-function-enhanced.git
+### `/api/serverless`
 
-### Clone and Deploy
+Handles file uploads and streaming to Google Drive.
 
-1. Clone the repository:
+-   **Method**: `POST`
+-   **Parameters**:
+    -   `fileUrl` (string, required): URL of the file to be uploaded.
+    -   `fileName` (string, optional): Name of the file.
+    -   `user` (string, optional): User identifier.
+    -   `setPublic` (boolean, optional, default: `true`): Set the file to be publicly accessible.
+    -   `reUpload` (boolean, optional, default: `false`): Re-upload the file if it already exists.
+    -   `folderId` (string, optional): ID of the Google Drive folder to upload to.
+    -   `folderName` (string, optional): Name of the folder.
 
-```bash
-git clone https://github.com/Wal33D/serverless-vercel-function-enhanced.git
-```
+### `/api/resetDrives`
 
-2. Install the Vercel CLI:
+Resets all drives and clears the database entries.
 
-```bash
-npm i -g vercel
-```
+-   **Method**: `POST`
 
-3. Run the app at the root of the repository:
+### `/api/status`
 
-```bash
-vercel dev
-```
+Retrieves detailed statistics about drive usage and file storage.
 
-## Function Handlers
+-   **Method**: `GET`
 
-### GET Request Handler
+### `/api/listFiles`
 
-Generates an HTML response for GET requests, incorporating the 'name' query parameter into the page title and content.
+Searches and retrieves files based on various parameters.
 
-### PUT Request Handler
+-   **Method**: `GET` or `POST`
+-   **Parameters** (can be passed as query params or in the body):
+    -   `_id` (string)
+    -   `fileName` (string)
+    -   `folderId` (string)
+    -   `folderName` (string)
+    -   `user` (string)
+    -   `ownerEmail` (string)
+    -   `id` (string)
+    -   `name` (string)
+    -   `mimeType` (string)
+    -   `starred` (boolean)
+    -   `trashed` (boolean)
+    -   `parents` (string)
+    -   `createdTime` (ISO date string)
+    -   `modifiedTime` (ISO date string)
+    -   `permissions` (string)
+    -   `md5Checksum` (string)
+    -   `sha1Checksum` (string)
+    -   `sha256Checksum` (string)
+    -   `size` (string)
 
-Handles PUT requests, extracts the 'name' query parameter, and constructs a response message.
+## ⚙️ Configuration
 
-### POST Request Handler
-
-Handles POST requests, extracts the 'name' query parameter, and constructs a response message.
-
-### Default Handler
-
-Handles unsupported methods (DELETE, PATCH, OPTIONS, HEAD) by returning a JSON response indicating the request type.
-
-## Example Requests
-
-Example requests to test the serverless function:
-
--   GET Request: This is the current page you are viewing.
--   PUT Request:
-
-```bash
-curl -X PUT "https://vercel.demo.function.serverless.aquataze.com/?name=Stan"
-```
-
-Response:
-
-```json
-{
-	"status": true,
-	"message": "Hello Stan! PUT request handled successfully",
-	"method": "PUT"
-}
-```
-
--   POST Request:
-
-```bash
-curl -X POST "https://vercel.demo.function.serverless.aquataze.com/?name=Stan"
-```
-
-Response:
-
-```json
-{
-	"status": true,
-	"message": "Hello Stan! POST request handled successfully",
-	"method": "POST"
-}
-```
-
-## Serverless Function Handler
-
-```typescript
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-import { handleGetRequest } from '../functions/handleGetRequest';
-import { handlePutRequest } from '../functions/handlePutRequest';
-import { handlePostRequest } from '../functions/handlePostRequest';
-
-/**
- * Serverless Function Handler
- *
- * This file handles incoming HTTP requests using Vercel's serverless functions. It routes
- * the requests to the appropriate handler based on the HTTP method (GET, PUT, POST, DELETE,
- * PATCH, OPTIONS, HEAD). If a method is not explicitly handled, a JSON response is returned
- * indicating the request type for safe handling of unsupported methods.
- *
- * Handlers:
- * - GET: handleGetRequest
- * - PUT: handlePutRequest
- * - POST: handlePostRequest
- * - DELETE, PATCH, OPTIONS, HEAD: handleDefaultRequest (returns JSON response logging the request type)
- *
- * The handlers are expected to return a Promise<void> and handle the response accordingly.
- *
- * @param {VercelRequest} request - The incoming Vercel request object.
- * @param {VercelResponse} response - The Vercel response object.
- * @returns {Promise<void>} - The response is sent directly by the handler.
- */
-
-type MethodHandlers = {
-	[key in 'GET' | 'PUT' | 'POST' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD']: (params: {
-		request: VercelRequest;
-		response: VercelResponse;
-	}) => Promise<void>;
-};
-
-const handleDefaultRequest = async ({ request, response }: { request: VercelRequest; response: VercelResponse }): Promise<void> => {
-	response.status(200).json({
-		status: true,
-		message: `Request method ${request.method} received and logged.`,
-		method: request.method,
-	});
-};
-
-const methodHandlers: MethodHandlers = {
-	GET: handleGetRequest,
-	PUT: handlePutRequest,
-	POST: handlePostRequest,
-	DELETE: handleDefaultRequest,
-	PATCH: handleDefaultRequest,
-	OPTIONS: handleDefaultRequest,
-	HEAD: handleDefaultRequest,
-};
-
-const handler = async (request: VercelRequest, response: VercelResponse) => {
-	try {
-		const method = request.method as keyof MethodHandlers;
-
-		if (method in methodHandlers) {
-			return methodHandlers[method]({ request, response });
-		}
-
-		response.status(405).json({
-			status: false,
-			message: `Method ${request.method} not allowed`,
-		});
-	} catch (error: any) {
-		response.status(500).json({
-			status: false,
-			message: `Error: ${error.message}`,
-		});
-	}
-};
-
-export default handler;
-```
-
-## Additional Configuration
-
-Add this configuration in your `vercel.json` file:
+Update the `vercel.json` file to configure function settings and routes:
 
 ```json
 {
@@ -181,8 +76,33 @@ Add this configuration in your `vercel.json` file:
 		"api/serverless.ts": {
 			"memory": 1024,
 			"maxDuration": 60
+		},
+		"api/resetDrives.ts": {
+			"memory": 1024,
+			"maxDuration": 60
+		},
+		"api/status.ts": {
+			"memory": 1024,
+			"maxDuration": 60
+		},
+		"api/listFiles.ts": {
+			"memory": 1024,
+			"maxDuration": 60
 		}
 	},
-	"rewrites": [{ "source": "/", "destination": "/api/serverless" }]
+	"rewrites": [
+		{ "source": "/", "destination": "/api/serverless" },
+		{ "source": "/reset", "destination": "/api/resetDrives" },
+		{ "source": "/status", "destination": "/api/status" },
+		{ "source": "/files", "destination": "/api/listFiles" }
+	]
 }
 ```
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+---
+
+Made with ❤️ by Waleed Judah
