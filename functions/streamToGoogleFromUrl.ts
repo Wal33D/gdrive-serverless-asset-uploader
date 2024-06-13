@@ -5,13 +5,14 @@ import { checkIfFileExists } from '../utils/checkIfFileExists';
 import { getParamsFromRequest } from '../utils/getParamsFromRequest';
 import { FileDocument, RequestParams } from '../types';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
+import { setFilePermissions } from '../utils/setFilePermissions';
 
 export async function streamToGoogleFromUrl(
 	req: VercelRequest
 ): Promise<{ status: boolean; fileDocument: FileDocument | null; reUpload: boolean; foundInDB: boolean; error?: string }> {
 	try {
 		const database = await connectToMongo();
-		const { fileUrl, fileName, user, setPublic, reUpload, path } = getParamsFromRequest(req) as RequestParams;
+		const { fileUrl, fileName, user, setPublic, reUpload, path, shareEmails } = getParamsFromRequest(req) as RequestParams;
 
 		const { exists, document: existingFile } = await checkIfFileExists({ fileName, folderName: path, user, database });
 
@@ -33,11 +34,14 @@ export async function streamToGoogleFromUrl(
 			fileName,
 			user,
 			path,
-			setPublic,
 			drive: driveClient,
 			ownerEmail: driveEmail,
 			fileId: reUpload && exists ? existingFile?.id : undefined, // Use existing fileId if reUploading
 		});
+
+		if (setPublic) {
+			await setFilePermissions({ drive: driveClient, fileId: fileDocument.id, shareEmails: shareEmails || undefined });
+		}
 
 		await saveFileRecordToDB(fileDocument);
 

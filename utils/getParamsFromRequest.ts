@@ -42,13 +42,14 @@ export const getParamsFromRequest = (req: VercelRequest): RequestParams => {
 
 	// Handle reUpload parameter, default to false
 	const reUploadParam = extractParams(req, 'reUpload');
-	const reUpload =
-		reUploadParam === undefined || reUploadParam === 'false' || reUploadParam === false
-			? false
-			: reUploadParam === 'true' || reUploadParam === true; // Default to false if not specified
+	const reUpload = reUploadParam === undefined ? false : reUploadParam === 'true' || reUploadParam === true; // Default to false if not specified
+
+	// Extract shareEmails parameter as an array
+	const shareEmailsParam = extractParams(req, 'shareEmails');
+	const shareEmails = Array.isArray(shareEmailsParam) ? shareEmailsParam : shareEmailsParam ? [shareEmailsParam] : [];
 
 	// Construct the path array
 	const path = folderName ? [user, folderName] : [user];
 
-	return { fileUrl, fileName, user, folderId, setPublic, reUpload, path };
+	return { fileUrl, fileName, user, folderId, setPublic, reUpload, path, shareEmails };
 };

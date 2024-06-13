@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { drive_v3 } from 'googleapis';
 import { FileDocument } from '../types';
-import { setFilePublic } from '../utils/setFilePublic';
+
 import { findOrCreateNestedFolder } from '../utils/findOrCreateNestedFolder';
 
 export async function streamDownloader({
@@ -9,7 +9,6 @@ export async function streamDownloader({
 	fileName,
 	user,
 	path,
-	setPublic,
 	drive,
 	ownerEmail,
 	fileId, // Optional fileId for updating an existing file
@@ -18,7 +17,6 @@ export async function streamDownloader({
 	fileName: string;
 	user: string;
 	path: string[];
-	setPublic: boolean;
 	drive: drive_v3.Drive;
 	ownerEmail: string;
 	fileId?: string;
@@ -38,10 +36,6 @@ export async function streamDownloader({
 		drive,
 		fileId, // Pass the fileId for updating if it exists
 	});
-
-	if (setPublic) {
-		await setFilePublic(drive, uploadResult.id);
-	}
 
 	const fileMetadata: FileDocument = {
 		fileName,

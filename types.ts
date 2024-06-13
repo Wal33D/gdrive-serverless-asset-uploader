@@ -58,6 +58,7 @@ export interface RequestParams {
 	folderId: string;
 	setPublic: boolean;
 	reUpload: boolean;
+	shareEmails: string[];
 }
 
 export type ServiceAccountClientsResult = {
