@@ -6,6 +6,7 @@
 	"author": "Wal33D",
 	"private": false,
 	"dependencies": {
+		"@types/formidable": "^3.4.5",
 		"@vercel/node": "^2.15.10",
 		"axios": "^1.7.2",
 		"dotenv": "^16.4.5",

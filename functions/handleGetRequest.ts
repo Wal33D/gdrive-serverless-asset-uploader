@@ -170,6 +170,12 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
             font-weight: 0;
             font-size: 3rem;
             }
+              /* Media query for mobile devices */
+  @media (max-width: 768px) {
+    .tile .drive-details {
+      display: none !important;
+    }
+  }
           </style>
         </head>
         <body>

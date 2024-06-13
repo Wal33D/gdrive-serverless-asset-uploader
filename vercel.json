@@ -22,6 +22,7 @@
 		{ "source": "/", "destination": "/api/serverless" },
 		{ "source": "/reset", "destination": "/api/resetDrives" },
 		{ "source": "/status", "destination": "/api/status" },
-		{ "source": "/files", "destination": "/api/listFiles" }
+		{ "source": "/files", "destination": "/api/listFiles" },
+		{ "source": "/form", "destination": "/api/uploadFormHandler" }
 	]
 }
