@@ -14,7 +14,7 @@ Additionally, this solution can accept as many Google Drive service accounts as 
 
 ## 📑 Endpoints
 
-### `/api/serverless`
+### `/`
 
 Handles file uploads and streaming to Google Drive.
 
@@ -28,19 +28,19 @@ Handles file uploads and streaming to Google Drive.
     -   `folderId` (string, optional): ID of the Google Drive folder to upload to.
     -   `folderName` (string, optional): Name of the folder.
 
-### `/api/resetDrives`
+### `/reset`
 
 Resets all drives and clears the database entries.
 
 -   **Method**: `POST`
 
-### `/api/status`
+### `/status`
 
 Retrieves detailed statistics about drive usage and file storage.
 
 -   **Method**: `GET`
 
-### `/api/listFiles`
+### `/files`
 
 Searches and retrieves files based on various parameters.
 
