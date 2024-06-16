@@ -6,6 +6,23 @@ import { uploadBase64ToGoogleDrive } from '../functions/uploadBase64ToGoogleDriv
 import { resetAllDrivesAndIndex } from '../functions/resetAllDrivesAndIndex';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
+const formatFileDocument = (fileDocument: any) => ({
+	id: fileDocument.id,
+	name: fileDocument.name,
+	size: fileDocument.size,
+	mimeType: fileDocument.mimeType,
+	iconLink: fileDocument.iconLink,
+	downloadUrl: fileDocument.downloadUrl,
+	webViewLink: fileDocument.webViewLink,
+	md5Checksum: fileDocument.md5Checksum,
+	createdTime: fileDocument.createdTime,
+	modifiedTime: fileDocument.modifiedTime,
+	starred: fileDocument.starred,
+	trashed: fileDocument.trashed,
+	parents: fileDocument.parents,
+	owners: fileDocument.owners.map((owner: any) => ({ emailAddress: owner.emailAddress })),
+});
+
 const handler = async (req: VercelRequest, res: VercelResponse) => {
 	try {
 		if (req.method === 'GET') {
@@ -24,7 +41,11 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 		const contentType = req.headers['content-type'];
 		if (contentType && contentType.includes('multipart/form-data')) {
 			const result = await handleFormDataRequest(req);
-			res.status(result.status ? 200 : 500).json(result);
+			const formattedResult = {
+				...result,
+				files: result.files.map(formatFileDocument),
+			};
+			res.status(result.status ? 200 : 500).json(formattedResult);
 			return;
 		}
 
@@ -33,10 +54,18 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 
 		if (base64File && typeof base64File === 'string') {
 			const result = await uploadBase64ToGoogleDrive(req);
-			res.status(result.status ? 200 : 500).json(result);
+			const formattedResult = {
+				...result,
+				fileDocument: formatFileDocument(result.fileDocument),
+			};
+			res.status(result.status ? 200 : 500).json(formattedResult);
 		} else if (fileUrl && typeof fileUrl === 'string') {
 			const result = await streamToGoogleFromUrl(req);
-			res.status(result.status ? 200 : 500).json(result);
+			const formattedResult = {
+				...result,
+				fileDocument: formatFileDocument(result.fileDocument),
+			};
+			res.status(result.status ? 200 : 500).json(formattedResult);
 		} else {
 			res.status(400).json({ status: false, error: 'Invalid or missing fileUrl or base64File parameter' });
 		}

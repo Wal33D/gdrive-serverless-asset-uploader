@@ -133,7 +133,22 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 
 				log(`Saving file record to DB for: ${fileDocument.id}`);
 				await saveFileRecordToDB(fileDocument);
-				uploadResults.push(fileDocument);
+				uploadResults.push({
+					id: fileDocument.id,
+					name: fileDocument.name,
+					size: fileDocument.size,
+					mimeType: fileDocument.mimeType,
+					iconLink: fileDocument.iconLink,
+					downloadUrl: fileDocument.downloadUrl,
+					webViewLink: fileDocument.webViewLink,
+					md5Checksum: fileDocument.md5Checksum,
+					createdTime: fileDocument.createdTime,
+					modifiedTime: fileDocument.modifiedTime,
+					starred: fileDocument.starred,
+					trashed: fileDocument.trashed,
+					parents: fileDocument.parents,
+					owners: fileDocument.owners.map(owner => ({ emailAddress: owner.emailAddress })),
+				});
 			}
 
 			log('Upload process completed');
