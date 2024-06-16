@@ -9,6 +9,7 @@ import { findOrCreateNestedFolder } from '../utils/findOrCreateNestedFolder';
 import { FileDocument, RequestParams } from '../types';
 import { gdriveResultFields as fields } from '../utils/gdriveResultFields';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
+import { getMimeType } from '../utils/getMimeTypes';
 
 export async function streamToGoogleFromUrl(
 	req: VercelRequest
@@ -44,7 +45,7 @@ export async function streamToGoogleFromUrl(
 		});
 
 		if (setPublic) {
-			await setFilePermissions({ drive: driveClient, fileId: fileDocument.id, shareEmails: shareEmails || undefined });
+			await setFilePermissions({ drive: driveClient, fileId: fileDocument.id, setPublic, shareEmails });
 		}
 
 		await saveFileRecordToDB(fileDocument);
@@ -115,8 +116,9 @@ const streamUploadToGoogleDrive = async ({
 	drive: drive_v3.Drive;
 	fileId?: string;
 }) => {
+	const mimeType = getMimeType(fileName);
 	const fileMetadata = { name: fileName };
-	const media = { mimeType: '*/*', body: fileStream };
+	const media = { mimeType, body: fileStream };
 
 	let uploadResponse;
 	if (fileId) {
