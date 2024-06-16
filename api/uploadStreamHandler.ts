@@ -42,13 +42,13 @@ const formDataUploadToGoogleDrive = async ({
 			addParents: folderId,
 			requestBody: fileMetadata,
 			media: media,
-			fields: 'id, name, mimeType, size, webViewLink, webContentLink',
+			fields: 'id, name, mimeType, size, md5Checksum, sha1Checksum, sha256Checksum, starred, trashed, parents, webViewLink, webContentLink, iconLink, createdTime, modifiedTime, quotaBytesUsed, owners(kind,displayName,photoLink,me,permissionId,emailAddress), permissions(id,type,emailAddress,role,displayName,photoLink,deleted)',
 		});
 	} else {
 		uploadResponse = await drive.files.create({
 			requestBody: { ...fileMetadata, parents: [folderId] },
 			media: media,
-			fields: 'id, name, mimeType, size, webViewLink, webContentLink',
+			fields: 'id, name, mimeType, size, md5Checksum, sha1Checksum, sha256Checksum, starred, trashed, parents, webViewLink, webContentLink, iconLink, createdTime, modifiedTime, quotaBytesUsed, owners(kind,displayName,photoLink,me,permissionId,emailAddress), permissions(id,type,emailAddress,role,displayName,photoLink,deleted)',
 		});
 	}
 
