@@ -37,7 +37,7 @@ const resetDrives = async () => {
 	return { status: true, message: 'All drives and database entries have been reset successfully.' };
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+const handler = async (req: VercelRequest, res: VercelResponse) => {
 	if (req.method !== 'POST') {
 		res.status(405).json({ error: 'Method not allowed' });
 		return;
@@ -62,4 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 			},
 		});
 	}
-}
+};
+
+export default handler;

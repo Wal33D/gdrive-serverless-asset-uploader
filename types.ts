@@ -74,9 +74,7 @@ export interface DriveStats {
 	totalUsedSpace: string;
 	totalSpace: string;
 	percentSpaceRemaining: string;
-	nextDriveIndex: number;
-	appTitle: string;
-	storageClusterName: string;
+	nextDriveIndex?: number;
 	drives: {
 		ownerEmail: string;
 		spaceUsed: string;

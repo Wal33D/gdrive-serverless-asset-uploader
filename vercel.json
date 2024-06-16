@@ -25,6 +25,7 @@
 	"rewrites": [
 		{ "source": "/", "destination": "/api/upload" },
 		{ "source": "/reset", "destination": "/api/reset" },
+		{ "source": "/info", "destination": "/api/info" },
 		{ "source": "/status", "destination": "/api/status" },
 		{ "source": "/files", "destination": "/api/files" },
 		{ "source": "/stream", "destination": "/api/uploadStreamHandler" }

@@ -14,22 +14,13 @@ export const getDriveStats = async (): Promise<DriveStats> => {
 	const recentStats: any = await statsCollection.findOne({ timestamp: { $gte: oneHourAgo } });
 
 	if (recentStats) {
-		// Start an async update in the background
-		updateDriveStatsInBackground(db);
+		fetchAndSaveDriveStats(db);
 		return recentStats;
 	}
 
 	// If no recent stats, fetch new ones synchronously
 	const newStats = await fetchAndSaveDriveStats(db);
 	return newStats;
-};
-
-const updateDriveStatsInBackground = async (db: any) => {
-	try {
-		await fetchAndSaveDriveStats(db);
-	} catch (error) {
-		console.error('Error updating drive stats in the background:', error);
-	}
 };
 
 const fetchAndSaveDriveStats = async (db: any): Promise<DriveStats> => {
@@ -65,14 +56,7 @@ const fetchAndSaveDriveStats = async (db: any): Promise<DriveStats> => {
 
 	const nextDriveIndex = await getCurrentDriveIndex(db);
 
-	const settingsCollection = db.collection('settings');
-	const settingsDoc = await settingsCollection.findOne({});
-	const appTitle = settingsDoc?.['app-title'] || 'Unknown';
-	const storageClusterName = settingsDoc?.['storage-cluster-name'] || 'Unknown';
-
 	const consolidated: DriveStats = {
-		appTitle,
-		storageClusterName,
 		nextDriveIndex,
 		numberOfDrives: count,
 		totalFiles,
