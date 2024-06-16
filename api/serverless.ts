@@ -1,5 +1,6 @@
 import { authorizeRequest } from '../utils/auth';
 import { handleGetRequest } from '../functions/handleGetRequest';
+import { handleFormDataRequest } from '../functions/uploadFormHandler';
 import { streamToGoogleFromUrl } from '../functions/streamToGoogleFromUrl';
 import { uploadBase64ToGoogleDrive } from '../functions/uploadBase64ToGoogleDrive';
 import { VercelRequest, VercelResponse } from '@vercel/node';
@@ -12,6 +13,13 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 		}
 
 		await authorizeRequest(req);
+
+		const contentType = req.headers['content-type'];
+		if (contentType && contentType.includes('multipart/form-data')) {
+			const result = await handleFormDataRequest(req);
+			res.status(result.status ? 200 : 500).json(result);
+			return;
+		}
 
 		const fileUrl = req.body?.fileUrl || req.query?.fileUrl;
 		const base64File = req.body?.base64File || req.query?.base64File;
