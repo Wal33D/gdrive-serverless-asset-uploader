@@ -20,25 +20,23 @@ Handles file uploads and streaming to Google Drive.
 
 -   **Method**: `POST`
 -   **Parameters**:
-    -   `fileUrl` (string, required): URL of the file to be uploaded.
+
+    -   `fileUrl` (string, optional): URL of the file to be uploaded.
+    -   `base64File` (string, optional): Base64 encoded string of the file to be uploaded.
     -   `fileName` (string, optional): Name of the file.
     -   `user` (string, optional): User identifier.
     -   `setPublic` (boolean, optional, default: `true`): Set the file to be publicly accessible.
     -   `reUpload` (boolean, optional, default: `false`): Re-upload the file if it already exists.
     -   `folderId` (string, optional): ID of the Google Drive folder to upload to.
     -   `folderName` (string, optional): Name of the folder.
+    -   `shareEmails` (array of strings, optional): Emails to share the file with.
 
-### `/reset`
-
-Resets all drives and clears the database entries.
-
--   **Method**: `POST`
+-   **Method**: `DELETE`
+    Resets all drives and clears the database entries.
 
 ### `/status`
 
 Retrieves detailed statistics about drive usage and file storage.
-
--   **Method**: `GET`
 
 ### `/files`
 
@@ -73,11 +71,7 @@ Update the `vercel.json` file to configure function settings and routes:
 ```json
 {
 	"functions": {
-		"api/serverless.ts": {
-			"memory": 1024,
-			"maxDuration": 60
-		},
-		"api/resetDrives.ts": {
+		"api/driveHandler.ts": {
 			"memory": 1024,
 			"maxDuration": 60
 		},
@@ -85,16 +79,20 @@ Update the `vercel.json` file to configure function settings and routes:
 			"memory": 1024,
 			"maxDuration": 60
 		},
-		"api/listFiles.ts": {
+		"api/files.ts": {
+			"memory": 1024,
+			"maxDuration": 60
+		},
+		"api/uploadStream.ts": {
 			"memory": 1024,
 			"maxDuration": 60
 		}
 	},
 	"rewrites": [
-		{ "source": "/", "destination": "/api/serverless" },
-		{ "source": "/reset", "destination": "/api/resetDrives" },
+		{ "source": "/", "destination": "/api/driveHandler" },
+		{ "source": "/stream", "destination": "/api/uploadStream" },
 		{ "source": "/status", "destination": "/api/status" },
-		{ "source": "/files", "destination": "/api/listFiles" }
+		{ "source": "/files", "destination": "/api/files" }
 	]
 }
 ```
