@@ -1,10 +1,8 @@
 import { drive_v3 } from 'googleapis';
 import { connectToMongo } from '../utils/mongo';
-import { authorizeRequest } from '../utils/auth';
 import { getServiceAccountClients } from '../utils/getServiceAccountClients';
-import { VercelRequest, VercelResponse } from '@vercel/node';
 
-const resetDrives = async () => {
+export const resetAllDrivesAndIndex = async () => {
 	const { driveClients } = await getServiceAccountClients();
 
 	for (const drive of driveClients) {
@@ -36,32 +34,3 @@ const resetDrives = async () => {
 
 	return { status: true, message: 'All drives and database entries have been reset successfully.' };
 };
-
-const handler = async (req: VercelRequest, res: VercelResponse) => {
-	if (req.method !== 'POST') {
-		res.status(405).json({ error: 'Method not allowed' });
-		return;
-	}
-	await authorizeRequest(req);
-
-	try {
-		const result = await resetDrives();
-		res.status(200).json({
-			data: {
-				status: result.status,
-				message: result.message,
-			},
-		});
-	} catch (error) {
-		console.error('Error resetting drives:', error);
-		res.status(500).json({
-			data: {
-				status: false,
-				error: 'Failed to reset drives',
-				details: (error as Error).message,
-			},
-		});
-	}
-};
-
-export default handler;

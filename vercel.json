@@ -1,10 +1,6 @@
 {
 	"functions": {
-		"api/upload.ts": {
-			"memory": 1024,
-			"maxDuration": 60
-		},
-		"api/reset.ts": {
+		"api/driveHandler.ts": {
 			"memory": 1024,
 			"maxDuration": 60
 		},
@@ -16,18 +12,16 @@
 			"memory": 1024,
 			"maxDuration": 60
 		},
-		"api/uploadStreamHandler.ts": {
+		"api/uploadStream.ts": {
 			"memory": 1024,
 			"maxDuration": 60
 		}
 	},
 
 	"rewrites": [
-		{ "source": "/", "destination": "/api/upload" },
-		{ "source": "/reset", "destination": "/api/reset" },
-		{ "source": "/info", "destination": "/api/info" },
+		{ "source": "/", "destination": "/api/driveHandler" },
+		{ "source": "/stream", "destination": "/api/uploadStream" },
 		{ "source": "/status", "destination": "/api/status" },
-		{ "source": "/files", "destination": "/api/files" },
-		{ "source": "/stream", "destination": "/api/uploadStreamHandler" }
+		{ "source": "/files", "destination": "/api/files" }
 	]
 }

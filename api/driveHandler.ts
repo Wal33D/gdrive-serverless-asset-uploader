@@ -3,6 +3,7 @@ import { handleGetRequest } from '../functions/handleGetRequest';
 import { handleFormDataRequest } from '../functions/uploadFormHandler';
 import { streamToGoogleFromUrl } from '../functions/streamToGoogleFromUrl';
 import { uploadBase64ToGoogleDrive } from '../functions/uploadBase64ToGoogleDrive';
+import { resetAllDrivesAndIndex } from '../functions/resetAllDrivesAndIndex';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 const handler = async (req: VercelRequest, res: VercelResponse) => {
@@ -13,6 +14,12 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 		}
 
 		await authorizeRequest(req);
+
+		if (req.method === 'DELETE') {
+			const result = await resetAllDrivesAndIndex();
+			res.status(result.status ? 200 : 500).json(result);
+			return;
+		}
 
 		const contentType = req.headers['content-type'];
 		if (contentType && contentType.includes('multipart/form-data')) {
