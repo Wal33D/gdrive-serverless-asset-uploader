@@ -9,6 +9,7 @@
 		"@types/formidable": "^3.4.5",
 		"@vercel/node": "^2.15.10",
 		"axios": "^1.7.2",
+		"busboy": "^1.6.0",
 		"dotenv": "^16.4.5",
 		"form-data": "^4.0.0",
 		"formidable": "^3.5.1",

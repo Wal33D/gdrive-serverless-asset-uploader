@@ -1,29 +1,29 @@
-import fs from 'fs';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import { drive_v3 } from 'googleapis';
-import { FileDocument } from '../types';
 import { getDriveClient } from '../utils/getDriveClient';
 import { authorizeRequest } from '../utils/auth';
-import { checkIfFileExists } from '../utils/checkIfFileExists';
-import { setFilePermissions } from '../utils/setFilePermissions';
-import { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
-import { IncomingForm, Fields, Files, File as FormidableFile } from 'formidable';
+import { setFilePermissions } from '../utils/setFilePermissions';
+import { checkIfFileExists } from '../utils/checkIfFileExists';
+import { FileDocument } from '../types';
+import Busboy from 'busboy';
+import { PassThrough } from 'stream';
 
 const formDataUploadToGoogleDrive = async ({
-	filePath,
+	stream,
 	fileName,
 	folderId,
 	drive,
 	fileId,
 }: {
-	filePath: string;
+	stream: NodeJS.ReadableStream;
 	fileName: string;
 	folderId: string;
 	drive: drive_v3.Drive;
 	fileId?: string;
 }): Promise<any> => {
 	const fileMetadata = { name: fileName };
-	const media = { mimeType: '*/*', body: fs.createReadStream(filePath) };
+	const media = { mimeType: '*/*', body: stream };
 
 	let uploadResponse;
 	if (fileId) {
@@ -67,53 +67,53 @@ const formDataUploadToGoogleDrive = async ({
 
 const handler = async (req: VercelRequest, res: VercelResponse) => {
 	try {
-		if (req.method === 'GET') {
+		if (req.method !== 'POST') {
 			res.status(405).json({ status: false, error: 'Method Not Allowed' });
 			return;
 		}
 
 		await authorizeRequest(req);
 
-		const form = new IncomingForm();
-		form.parse(req, async (err: any, fields: Fields, files: Files) => {
-			if (err) {
-				res.status(400).json({ status: false, error: 'Error parsing form data' });
-				return;
-			}
+		const busboy = new Busboy({ headers: req.headers });
+		const uploadResults: any[] = [];
+		let fields: any = {};
+		const streams: { stream: NodeJS.ReadableStream; fileName: string }[] = [];
 
-			// Log fields and files for debugging
-			console.log('Fields:', fields);
-			console.log('Files:', files);
+		busboy.on('field', (fieldname, val) => {
+			fields[fieldname] = val;
+		});
 
-			const fileArray = files.file as FormidableFile[];
-			if (!fileArray || !fileArray.length) {
-				res.status(400).json({ status: false, error: 'File is missing or invalid' });
-				return;
-			}
+		busboy.on('file', (fieldname, file, filename) => {
+			const passThrough = new PassThrough();
+			file.pipe(passThrough);
+			streams.push({ stream: passThrough, fileName: filename });
+		});
 
+		busboy.on('finish', async () => {
 			const fileNames = Array.isArray(fields.fileName) ? fields.fileName : [fields.fileName];
-			const folderId = (fields.folderId && fields.folderId[0]) || 'root';
-			const setPublic = fields.setPublic && fields.setPublic[0] === 'true';
-			const reUpload = fields.reUpload && fields.reUpload[0] === 'true';
-			const shareEmails = Array.isArray(fields.shareEmails) ? fields.shareEmails : fields.shareEmails ? [fields.shareEmails[0]] : [];
-			const user = (fields.user && fields.user[0]) || 'anonymous';
+			const folderId = fields.folderId || 'root';
+			const setPublic = fields.setPublic === 'true';
+			const reUpload = fields.reUpload === 'true';
+			const shareEmails = Array.isArray(fields.shareEmails) ? fields.shareEmails : fields.shareEmails ? [fields.shareEmails] : [];
+			const user = fields.user || 'anonymous';
 
 			const database = await connectToMongo();
 			const { driveClient: drive } = await getDriveClient({ database });
 
-			const uploadResults = [];
+			for (let i = 0; i < streams.length; i++) {
+				const { stream, fileName } = streams[i];
+				const actualFileName = fileNames[i] || fileName;
 
-			for (let i = 0; i < fileArray.length; i++) {
-				const file = fileArray[i];
-				const oldPath = file.filepath;
-				const fileName = fileNames[i] || file.originalFilename;
-				//@ts-ignore
-				const { exists, document: existingFile } = await checkIfFileExists({ fileName, folderName: [user, folderId], user, database });
+				const { exists, document: existingFile } = await checkIfFileExists({
+					fileName: actualFileName,
+					folderName: [user, folderId],
+					user,
+					database,
+				});
 
 				const fileDocument: FileDocument = await formDataUploadToGoogleDrive({
-					filePath: oldPath,
-					//@ts-ignore
-					fileName,
+					stream,
+					fileName: actualFileName,
 					folderId,
 					drive,
 					fileId: reUpload && exists ? existingFile?.id : undefined,
@@ -124,12 +124,13 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 				}
 
 				await saveFileRecordToDB(fileDocument);
-				//@ts-ignore
 				uploadResults.push(fileDocument);
 			}
 
 			res.status(200).json({ status: true, files: uploadResults });
 		});
+
+		req.pipe(busboy);
 	} catch (error) {
 		console.error('Failed to upload file:', error);
 		res.status(500).json({ status: false, error: error.message });
