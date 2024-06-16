@@ -23,16 +23,18 @@ Handles file uploads and streaming to Google Drive.
 
     -   `fileUrl` (string, optional): URL of the file to be uploaded.
     -   `base64File` (string, optional): Base64 encoded string of the file to be uploaded.
+    -   `fileUrls` (array of strings, optional): Array of URLs of the files to be uploaded.
     -   `fileName` (string, optional): Name of the file.
-    -   `user` (string, optional): User identifier.
+    -   `fileNames` (array of strings, optional): Array of names for the files being uploaded via `fileUrls`.
     -   `setPublic` (boolean, optional, default: `true`): Set the file to be publicly accessible.
     -   `reUpload` (boolean, optional, default: `false`): Re-upload the file if it already exists.
     -   `folderId` (string, optional): ID of the Google Drive folder to upload to.
     -   `folderName` (string, optional): Name of the folder.
     -   `shareEmails` (array of strings, optional): Emails to share the file with.
+    -   `user` (string, optional): User identifier - defaults to anonymous so be aware if used in a multi user tenancy system that this isnt left undefined.
 
 -   **Method**: `DELETE`
-    Resets all drives and clears the database entries.
+    -   Resets all drives and clears the database entries.
 
 ### `/status`
 
@@ -44,14 +46,13 @@ Searches and retrieves files based on various parameters.
 
 -   **Method**: `GET` or `POST`
 -   **Parameters** (can be passed as query params or in the body):
-    -   `_id` (string)
-    -   `fileName` (string)
+    -   `id` (string)
+    -   `name` | `fileName` (string)
     -   `folderId` (string)
     -   `folderName` (string)
     -   `user` (string)
     -   `ownerEmail` (string)
-    -   `id` (string)
-    -   `name` (string)
+    -   `size` (string)
     -   `mimeType` (string)
     -   `starred` (boolean)
     -   `trashed` (boolean)
@@ -60,9 +61,6 @@ Searches and retrieves files based on various parameters.
     -   `modifiedTime` (ISO date string)
     -   `permissions` (string)
     -   `md5Checksum` (string)
-    -   `sha1Checksum` (string)
-    -   `sha256Checksum` (string)
-    -   `size` (string)
 
 ## ⚙️ Configuration
 
@@ -96,6 +94,10 @@ Update the `vercel.json` file to configure function settings and routes:
 	]
 }
 ```
+
+## 🚀 Upcoming Features
+
+-   **Infinite Upload Streaming through Vercel Edge**: 🚀 Infinite upload streaming is on the way! By leveraging Vercel Edge's capabilities, we will be able to bypass the current limitations (60-second runtime, 4.5MB request body) imposed by the free plan. This will be done by chunking data to stay within the 125MB per chunk restriction and utilizing Vercel's infinite runtime for edge functions, as long as streaming is initiated within 25 seconds. This feature will allow direct streaming to Google Drive from the incoming stream sent to the server. Currently, you can bypass these limitations by sending an array of `fileUrls`, allowing the code to handle the downloading and streaming in and from the cloud.
 
 ## 📝 License
 
