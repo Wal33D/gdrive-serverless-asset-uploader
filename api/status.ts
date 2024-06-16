@@ -73,30 +73,6 @@ const fetchAndSaveDriveStats = async (db: any): Promise<DriveStats> => {
 	return consolidated;
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-	if (req.method !== 'GET') {
-		res.status(405).json({ error: 'Method not allowed' });
-		return;
-	}
-
-	try {
-		res.setHeader('Cache-Control', 's-maxage=17200, stale-while-revalidate');
-		const stats = await getDriveStats();
-		res.status(200).json({
-			status: true,
-			data: stats,
-			message: 'Drive stats retrieved successfully.',
-		});
-	} catch (error) {
-		console.error('Error retrieving drive stats:', error);
-		res.status(500).json({
-			status: false,
-			data: null,
-			message: `Failed to retrieve drive stats ${(error as Error).message}`,
-		});
-	}
-}
-
 const getFileCountAndUsedSpace = async (
 	drive: drive_v3.Drive
 ): Promise<{
@@ -153,3 +129,29 @@ const getFileCountAndUsedSpace = async (
 
 	return { totalFiles, usedSpace, trashedFiles, trashedSpace, totalFolders };
 };
+
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+	if (req.method !== 'GET') {
+		res.status(405).json({ error: 'Method not allowed' });
+		return;
+	}
+
+	try {
+		res.setHeader('Cache-Control', 's-maxage=17200, stale-while-revalidate');
+		const stats = await getDriveStats();
+		res.status(200).json({
+			status: true,
+			data: stats,
+			message: 'Drive stats retrieved successfully.',
+		});
+	} catch (error) {
+		console.error('Error retrieving drive stats:', error);
+		res.status(500).json({
+			status: false,
+			data: null,
+			message: `Failed to retrieve drive stats ${(error as Error).message}`,
+		});
+	}
+}
+
+export default handler;

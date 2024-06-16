@@ -8,9 +8,7 @@ const searchFiles = async (query: any) => {
 
 	const searchQuery: any = {};
 
-	// Add conditions to searchQuery based on the provided query parameters
-	if (query._id) searchQuery._id = query._id;
-	if (query.fileName) searchQuery.name = query.fileName;
+	if (query.fileName) searchQuery.name = query.name;
 	if (query.folderId) searchQuery.folderId = query.folderId;
 	if (query.folderName) searchQuery.folderName = query.folderName;
 	if (query.user) searchQuery.user = query.user;
@@ -25,15 +23,13 @@ const searchFiles = async (query: any) => {
 	if (query.modifiedTime) searchQuery.modifiedTime = { $gte: new Date(query.modifiedTime) };
 	if (query.permissions) searchQuery.permissions = { $elemMatch: { emailAddress: query.permissions } };
 	if (query.md5Checksum) searchQuery.md5Checksum = query.md5Checksum;
-	if (query.sha1Checksum) searchQuery.sha1Checksum = query.sha1Checksum;
-	if (query.sha256Checksum) searchQuery.sha256Checksum = query.sha256Checksum;
 	if (query.size) searchQuery.size = query.size;
 
 	const files = await filesCollection.find(searchQuery).toArray();
 	return files;
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
 	try {
 		await authorizeRequest(req);
 
@@ -66,3 +62,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 		});
 	}
 }
+
+export default handler;
