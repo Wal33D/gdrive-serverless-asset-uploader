@@ -1,10 +1,10 @@
 {
 	"functions": {
-		"api/serverless.ts": {
+		"api/upload.ts": {
 			"memory": 1024,
 			"maxDuration": 60
 		},
-		"api/resetDrives.ts": {
+		"api/reset.ts": {
 			"memory": 1024,
 			"maxDuration": 60
 		},
@@ -12,11 +12,10 @@
 			"memory": 1024,
 			"maxDuration": 60
 		},
-		"api/listFiles.ts": {
+		"api/files.ts": {
 			"memory": 1024,
 			"maxDuration": 60
 		},
-
 		"api/uploadStreamHandler.ts": {
 			"memory": 1024,
 			"maxDuration": 60
@@ -24,11 +23,10 @@
 	},
 
 	"rewrites": [
-		{ "source": "/", "destination": "/api/serverless" },
-		{ "source": "/reset", "destination": "/api/resetDrives" },
+		{ "source": "/", "destination": "/api/upload" },
+		{ "source": "/reset", "destination": "/api/reset" },
 		{ "source": "/status", "destination": "/api/status" },
-		{ "source": "/files", "destination": "/api/listFiles" },
-		{ "source": "/form", "destination": "/api/uploadFormHandler" },
+		{ "source": "/files", "destination": "/api/files" },
 		{ "source": "/stream", "destination": "/api/uploadStreamHandler" }
 	]
 }
