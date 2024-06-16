@@ -226,6 +226,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('pageTitle').innerText = "${pageTitle}";
+            document.getElementById('storageClusterName').innerText = "Storage Cluster Name: ${clusterName}";
             async function fetchAppInfo() {
                 try {
                     const response = await fetch('/api/app-info');

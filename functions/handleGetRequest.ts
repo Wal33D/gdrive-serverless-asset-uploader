@@ -8,6 +8,7 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
 	const { name } = request.query;
 	const userName = Array.isArray(name) ? name[0] : name || '';
 	const pageTitle = userName ? `Hello ${capitalize(userName)}!` : `🚀 Google Drive Uploader²`;
+	const clusterName = process.env.APP_CLUSTER_NAME || 'Default Cluster';
 
 	fs.readFile(filePath, 'utf8', (err, data) => {
 		if (err) {
@@ -17,7 +18,7 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
 		}
 
 		// Replace placeholders with actual values
-		const htmlContent = data.replace('${pageTitle}', pageTitle);
+		const htmlContent = data.replace('${pageTitle}', pageTitle).replace('${clusterName}', clusterName);
 
 		response.setHeader('Content-Type', 'text/html');
 		response.send(htmlContent);
