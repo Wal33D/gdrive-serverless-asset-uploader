@@ -1,13 +1,18 @@
 import fs from 'fs';
+import { File } from 'formidable';
 import { drive_v3 } from 'googleapis';
+import { getMimeType } from '../utils/getMimeTypes';
 import { FileDocument } from '../types';
+import { IncomingForm } from 'formidable';
 import { getDriveClient } from '../utils/getDriveClient';
 import { authorizeRequest } from '../utils/auth';
 import { checkIfFileExists } from '../utils/checkIfFileExists';
 import { setFilePermissions } from '../utils/setFilePermissions';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
-import { IncomingForm, Fields, Files, File as FormidableFile } from 'formidable';
+
+const fields =
+	'id, name, mimeType, size, md5Checksum, starred, trashed, parents, iconLink, createdTime, modifiedTime, webViewLink, webContentLink, owners(kind,permissionId,emailAddress), permissions(id,emailAddress,role)';
 
 const formDataUploadToGoogleDrive = async ({
 	filePath,
@@ -22,96 +27,80 @@ const formDataUploadToGoogleDrive = async ({
 	drive: drive_v3.Drive;
 	fileId?: string;
 }): Promise<any> => {
+	const mimeType = getMimeType(fileName);
 	const fileMetadata = { name: fileName };
-	const media = { mimeType: '*/*', body: fs.createReadStream(filePath) };
+	const media = { mimeType, body: fs.createReadStream(filePath) };
 
-	let uploadResponse;
-	if (fileId) {
-		const existingFile = await drive.files.get({ fileId, fields: 'parents' });
-		const previousParents = existingFile.data.parents ? existingFile.data.parents.join(',') : '';
-
-		if (previousParents) {
-			await drive.files.update({
+	const request = fileId
+		? drive.files.update({
 				fileId,
-				removeParents: previousParents,
-			});
-		}
+				addParents: folderId,
+				removeParents: (await drive.files.get({ fileId, fields: 'parents' })).data.parents?.join(','),
+				requestBody: fileMetadata,
+				media,
+				fields,
+		  })
+		: drive.files.create({
+				requestBody: { ...fileMetadata, parents: [folderId] },
+				media,
+				fields,
+		  });
 
-		uploadResponse = await drive.files.update({
-			fileId,
-			addParents: folderId,
-			requestBody: fileMetadata,
-			media: media,
-			fields: 'id, name, mimeType, size, md5Checksum, sha1Checksum, sha256Checksum, starred, trashed, parents, webViewLink, webContentLink, iconLink, createdTime, modifiedTime, quotaBytesUsed, owners(kind,displayName,photoLink,me,permissionId,emailAddress), permissions(id,type,emailAddress,role,displayName,photoLink,deleted)',
-		});
-	} else {
-		uploadResponse = await drive.files.create({
-			requestBody: { ...fileMetadata, parents: [folderId] },
-			media: media,
-			fields: 'id, name, mimeType, size, md5Checksum, sha1Checksum, sha256Checksum, starred, trashed, parents, webViewLink, webContentLink, iconLink, createdTime, modifiedTime, quotaBytesUsed, owners(kind,displayName,photoLink,me,permissionId,emailAddress), permissions(id,type,emailAddress,role,displayName,photoLink,deleted)',
-		});
-	}
-
+	const uploadResponse = await request;
 	const downloadUrl = `https://drive.google.com/uc?id=${uploadResponse.data.id}&export=download`;
 
-	return {
-		...uploadResponse.data,
-		downloadUrl,
-	};
+	return { ...uploadResponse.data, downloadUrl };
 };
 
 const handler = async (req: VercelRequest, res: VercelResponse) => {
-	try {
-		if (req.method === 'GET') {
-			res.status(405).json({ status: false, error: 'Method Not Allowed' });
-			return;
-		}
+	if (req.method === 'GET') {
+		res.status(405).json({ status: false, error: 'Method Not Allowed' });
+		return;
+	}
 
+	try {
 		await authorizeRequest(req);
 
 		const form = new IncomingForm();
-		form.parse(req, async (err: any, fields: Fields, files: Files) => {
-			if (err) {
-				res.status(400).json({ status: false, error: 'Error parsing form data' });
-				return;
-			}
+		form.parse(req, async (err, fields, files) => {
+			if (err) return res.status(400).json({ status: false, error: 'Error parsing form data' });
 
-			// Log fields and files for debugging
-			console.log('Fields:', fields);
-			console.log('Files:', files);
-
-			const fileArray = files.file as FormidableFile[];
-			if (!fileArray || !fileArray.length) {
-				res.status(400).json({ status: false, error: 'File is missing or invalid' });
-				return;
-			}
+			const fileArray = files.file as File[];
+			if (!fileArray || !fileArray.length) return res.status(400).json({ status: false, error: 'File is missing or invalid' });
 
 			const fileNames = Array.isArray(fields.fileName) ? fields.fileName : [fields.fileName];
-			const folderId = (fields.folderId && fields.folderId[0]) || 'root';
-			const setPublic = fields.setPublic && fields.setPublic[0] === 'true';
-			const reUpload = fields.reUpload && fields.reUpload[0] === 'true';
+			const folderId = fields.folderId?.[0] || 'root';
+			const setPublic = fields.setPublic?.[0] === 'true';
+			const reUpload = fields.reUpload?.[0] === 'true';
 			const shareEmails = Array.isArray(fields.shareEmails) ? fields.shareEmails : fields.shareEmails ? [fields.shareEmails[0]] : [];
-			const user = (fields.user && fields.user[0]) || 'anonymous';
+			const user = fields.user?.[0] || 'anonymous';
 
 			const database = await connectToMongo();
 			const { driveClient: drive } = await getDriveClient({ database });
 
 			const uploadPromises = fileArray.map(async (file, i) => {
-				const oldPath = file.filepath;
 				const fileName = fileNames[i] || file.originalFilename;
-				//@ts-ignore
-				const { exists, document: existingFile } = await checkIfFileExists({ fileName, folderName: [user, folderId], user, database });
+
+				if (!fileName) {
+					throw new Error('File name is missing, cannot proceed with the upload.');
+				}
+
+				let existingFile: any = undefined;
+				let exists = false;
+
+				const result = await checkIfFileExists({ fileName, folderName: [user, folderId], user, database });
+				existingFile = result.document;
+				exists = result.exists;
 
 				const fileDocument: FileDocument = await formDataUploadToGoogleDrive({
-					filePath: oldPath,
-					//@ts-ignore
+					filePath: file.filepath,
 					fileName,
 					folderId,
 					drive,
 					fileId: reUpload && exists ? existingFile?.id : undefined,
 				});
 
-				if (setPublic || (shareEmails && shareEmails.length > 0)) {
+				if (setPublic || shareEmails.length) {
 					await setFilePermissions({ drive, fileId: fileDocument.id, setPublic, shareEmails });
 				}
 
@@ -120,7 +109,6 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 			});
 
 			const uploadResults = await Promise.all(uploadPromises);
-
 			res.status(200).json({ status: true, files: uploadResults });
 		});
 	} catch (error) {
