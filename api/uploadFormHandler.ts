@@ -55,12 +55,7 @@ const formDataUploadToGoogleDrive = async ({
 	const downloadUrl = `https://drive.google.com/uc?id=${uploadResponse.data.id}&export=download`;
 
 	return {
-		id: uploadResponse.data.id,
-		name: uploadResponse.data.name,
-		mimeType: uploadResponse.data.mimeType,
-		size: uploadResponse.data.size,
-		webViewLink: uploadResponse.data.webViewLink,
-		webContentLink: uploadResponse.data.webContentLink,
+		...uploadResponse.data,
 		downloadUrl,
 	};
 };
@@ -101,10 +96,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 			const database = await connectToMongo();
 			const { driveClient: drive } = await getDriveClient({ database });
 
-			const uploadResults = [];
-
-			for (let i = 0; i < fileArray.length; i++) {
-				const file = fileArray[i];
+			const uploadPromises = fileArray.map(async (file, i) => {
 				const oldPath = file.filepath;
 				const fileName = fileNames[i] || file.originalFilename;
 				//@ts-ignore
@@ -124,9 +116,10 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 				}
 
 				await saveFileRecordToDB(fileDocument);
-				//@ts-ignore
-				uploadResults.push(fileDocument);
-			}
+				return fileDocument;
+			});
+
+			const uploadResults = await Promise.all(uploadPromises);
 
 			res.status(200).json({ status: true, files: uploadResults });
 		});

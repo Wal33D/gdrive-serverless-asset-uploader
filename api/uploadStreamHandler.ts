@@ -9,6 +9,10 @@ import { FileDocument } from '../types';
 import Busboy from 'busboy';
 import { PassThrough } from 'stream';
 
+const log = (message: string) => {
+	console.log(`[LOG] ${new Date().toISOString()} - ${message}`);
+};
+
 const formDataUploadToGoogleDrive = async ({
 	stream,
 	fileName,
@@ -55,12 +59,7 @@ const formDataUploadToGoogleDrive = async ({
 	const downloadUrl = `https://drive.google.com/uc?id=${uploadResponse.data.id}&export=download`;
 
 	return {
-		id: uploadResponse.data.id,
-		name: uploadResponse.data.name,
-		mimeType: uploadResponse.data.mimeType,
-		size: uploadResponse.data.size,
-		webViewLink: uploadResponse.data.webViewLink,
-		webContentLink: uploadResponse.data.webContentLink,
+		...uploadResponse.data,
 		downloadUrl,
 	};
 };
@@ -72,6 +71,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 			return;
 		}
 
+		log('Authorizing request');
 		await authorizeRequest(req);
 
 		const busboy = new Busboy({ headers: req.headers });
@@ -80,16 +80,19 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 		const streams: { stream: NodeJS.ReadableStream; fileName: string }[] = [];
 
 		busboy.on('field', (fieldname, val) => {
+			log(`Received field: ${fieldname}`);
 			fields[fieldname] = val;
 		});
 
 		busboy.on('file', (fieldname, file, filename) => {
+			log(`Received file: ${filename}`);
 			const passThrough = new PassThrough();
 			file.pipe(passThrough);
 			streams.push({ stream: passThrough, fileName: filename });
 		});
 
 		busboy.on('finish', async () => {
+			log('Processing finished event from Busboy');
 			const fileNames = Array.isArray(fields.fileName) ? fields.fileName : [fields.fileName];
 			const folderId = fields.folderId || 'root';
 			const setPublic = fields.setPublic === 'true';
@@ -97,6 +100,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 			const shareEmails = Array.isArray(fields.shareEmails) ? fields.shareEmails : fields.shareEmails ? [fields.shareEmails] : [];
 			const user = fields.user || 'anonymous';
 
+			log('Connecting to MongoDB');
 			const database = await connectToMongo();
 			const { driveClient: drive } = await getDriveClient({ database });
 
@@ -104,6 +108,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 				const { stream, fileName } = streams[i];
 				const actualFileName = fileNames[i] || fileName;
 
+				log(`Checking if file exists: ${actualFileName}`);
 				const { exists, document: existingFile } = await checkIfFileExists({
 					fileName: actualFileName,
 					folderName: [user, folderId],
@@ -111,6 +116,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 					database,
 				});
 
+				log(`Uploading file: ${actualFileName}`);
 				const fileDocument: FileDocument = await formDataUploadToGoogleDrive({
 					stream,
 					fileName: actualFileName,
@@ -120,13 +126,16 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 				});
 
 				if (setPublic || (shareEmails && shareEmails.length > 0)) {
+					log(`Setting file permissions for: ${fileDocument.id}`);
 					await setFilePermissions({ drive, fileId: fileDocument.id, setPublic, shareEmails });
 				}
 
+				log(`Saving file record to DB for: ${fileDocument.id}`);
 				await saveFileRecordToDB(fileDocument);
 				uploadResults.push(fileDocument);
 			}
 
+			log('Upload process completed');
 			res.status(200).json({ status: true, files: uploadResults });
 		});
 
