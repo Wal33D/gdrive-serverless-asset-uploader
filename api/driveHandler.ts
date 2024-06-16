@@ -2,9 +2,10 @@ import { authorizeRequest } from '../utils/auth';
 import { handleGetRequest } from '../functions/handleGetRequest';
 import { handleFormDataRequest } from '../functions/uploadFormHandler';
 import { streamToGoogleFromUrl } from '../functions/streamToGoogleFromUrl';
-import { uploadBase64ToGoogleDrive } from '../functions/uploadBase64ToGoogleDrive';
 import { resetAllDrivesAndIndex } from '../functions/resetAllDrivesAndIndex';
+import { uploadBase64ToGoogleDrive } from '../functions/uploadBase64ToGoogleDrive';
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { streamToGoogleFromUrls } from '../functions/streamToGoogleFromUrls';
 
 const formatFileDocument = (fileDocument: any) => ({
 	id: fileDocument.id,
@@ -51,6 +52,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 
 		const fileUrl = req.body?.fileUrl || req.query?.fileUrl;
 		const base64File = req.body?.base64File || req.query?.base64File;
+		const fileUrls = req.body?.fileUrls || req.query?.fileUrls;
 
 		if (base64File && typeof base64File === 'string') {
 			const result = await uploadBase64ToGoogleDrive(req);
@@ -66,8 +68,15 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 				fileDocument: formatFileDocument(result.fileDocument),
 			};
 			res.status(result.status ? 200 : 500).json(formattedResult);
+		} else if (fileUrls && Array.isArray(fileUrls)) {
+			const result = await streamToGoogleFromUrls(req); // Imaginary function
+			const formattedResult = {
+				...result,
+				fileDocuments: result.fileDocuments.map(formatFileDocument),
+			};
+			res.status(result.status ? 200 : 500).json(formattedResult);
 		} else {
-			res.status(400).json({ status: false, error: 'Invalid or missing fileUrl or base64File parameter' });
+			res.status(400).json({ status: false, error: 'Invalid or missing fileUrl, fileUrls, or base64File parameter' });
 		}
 	} catch (error) {
 		console.error('Failed to process request:', error);
