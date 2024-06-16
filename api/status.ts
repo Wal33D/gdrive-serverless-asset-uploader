@@ -1,7 +1,6 @@
 import { drive_v3 } from 'googleapis';
 import { DriveStats } from '../types';
 import { connectToMongo } from '../utils/mongo';
-import { authorizeRequest } from '../utils/auth';
 import { getCurrentDriveIndex } from '../utils/mongo';
 import { getServiceAccountClients } from '../utils/getServiceAccountClients';
 import { VercelRequest, VercelResponse } from '@vercel/node';
@@ -95,7 +94,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 		res.status(405).json({ error: 'Method not allowed' });
 		return;
 	}
-	await authorizeRequest(req);
 
 	try {
 		res.setHeader('Cache-Control', 's-maxage=17200, stale-while-revalidate');

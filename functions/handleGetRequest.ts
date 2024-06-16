@@ -1,31 +1,14 @@
 import { capitalize } from '../utils/capitalize';
-import { getDriveStats } from '../api/status';
-import type { DriveStats } from '../types';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export const handleGetRequest = async ({ request, response }: { request: VercelRequest; response: VercelResponse }): Promise<void> => {
 	const { name } = request.query;
 	const userName = Array.isArray(name) ? name[0] : name || '';
-	try {
-		const stats: DriveStats = await getDriveStats();
-		const appTitle = stats.appTitle;
-		const pageTitle = userName ? `Hello ${capitalize(userName)}!` : `🚀 ${appTitle}`;
-		const driveCount = stats.numberOfDrives;
-		const totalFilesStored = stats.totalFiles;
-		const totalUsage = stats.totalUsedSpace;
-		const percentRemaining = stats.percentSpaceRemaining;
-		const storageClusterName = stats.storageClusterName;
-		const totalSpaceGB = `${parseFloat(stats.totalSpace.replace('MB', ''))} GB`;
 
-		//@ts-ignore
-		const lastModified = new Date(stats.timestamp).toLocaleDateString('en-US', {
-			month: '2-digit',
-			day: '2-digit',
-			year: '2-digit',
-		});
-		const driveDetails = stats.drives.map((drive, index) => `Drive ${index + 1}: ${drive.percentSpaceRemaining} remaining`).join('<br>');
+	const appTitle = 'Your App Title';
+	const pageTitle = userName ? `Hello ${capitalize(userName)}!` : `🚀 ${appTitle}`;
 
-		const htmlContent = `
+	const htmlContent = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -183,37 +166,33 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
             <h1>${pageTitle}</h1>
             <p>This cool serverless app lets you upload files to Google Drive with virtually infinite storage by spreading them across multiple 15GB free service worker Google Drive buckets. Add as many as you'd like! 🚀📂</p>
             <div class="stats-container">
-              <div class="tile-container">
+              <div class="tile-container" id="stats-container">
                 <div class="tile">
                   <div class="online-indicator"></div>
                   <i class="fa fa-hdd-o"></i>
-                  <strong>${driveCount} Drives Online</strong>
-                  <div class="drive-details">${driveDetails}</div>
+                  <strong id="driveCount">Loading...</strong>
+                  <div class="drive-details" id="driveDetails"></div>
                 </div>
                 <div class="tile">
                   <i class="fa fa-file"></i>
-                  <strong>${totalFilesStored} Files Stored</strong>
-                <h6>Last Modified: ${lastModified}</h6>
+                  <strong id="totalFilesStored">Loading...</strong>
                 </div>
-                 <div class="tile">
-                <img src="https://res.cloudinary.com/aquataze/image/upload/v1718073479/gdrive.png" alt="Google Drive Logo" class="drive-logo">
-                <strong>Google Drive</strong>
+                <div class="tile">
+                  <img src="https://res.cloudinary.com/aquataze/image/upload/v1718073479/gdrive.png" alt="Google Drive Logo" class="drive-logo">
+                  <strong>Google Drive</strong>
                 </div>
                 <div class="tile">
                   <i class="fa fa-database"></i>
-                  <h6>Used Space: ${totalUsage}</h6>
-                  <h6>Total Space: ${totalSpaceGB}</h6>
+                  <h6 id="totalUsage">Loading...</h6>
+                  <h6 id="totalSpaceGB">Loading...</h6>
                 </div>
                 <div class="tile">
-                  <div class="circular-progress">
+                  <div class="circular-progress" id="spaceRemaining">
                     <svg>
                       <circle class="background" cx="40" cy="40" r="35"></circle>
-                      <circle class="foreground" cx="40" cy="40" r="35" stroke-dasharray="219.9" stroke-dashoffset="${(
-							219.9 *
-							(100 - parseFloat(percentRemaining))
-						).toFixed(1)}"></circle>
+                      <circle class="foreground" cx="40" cy="40" r="35"></circle>
                     </svg>
-                    <div class="percentage">${percentRemaining}</div>
+                    <div class="percentage" id="percentRemaining">Loading...</div>
                   </div>
                   <strong>Space Remaining</strong>
                 </div>
@@ -225,17 +204,33 @@ export const handleGetRequest = async ({ request, response }: { request: VercelR
               </p>
               <h6>Check out the code on GitHub: <a href="https://github.com/Wal33D/gdrive-serverless-asset-uploader" target="_blank">https://github.com/Wal33D/gdrive-serverless-asset-uploader</a></h6>
               <h6> Made with ❤️ by Waleed Judah</h6>
-              <h6> Storage Cluster Name: ${storageClusterName}</h6>
+              <h6 id="storageClusterName">Loading...</h6>
             </footer>
           </div>
+          <script>
+            async function fetchStats() {
+              const response = await fetch('/api/status');
+              const stats = await response.json();
+              document.getElementById('driveCount').innerText = stats.numberOfDrives + ' Drives Online';
+              document.getElementById('totalFilesStored').innerText = stats.totalFiles + ' Files Stored';
+              document.getElementById('totalUsage').innerText = 'Used Space: ' + stats.totalUsedSpace;
+              document.getElementById('totalSpaceGB').innerText = 'Total Space: ' + parseFloat(stats.totalSpace.replace('MB', '')) + ' GB';
+              document.getElementById('percentRemaining').innerText = stats.percentSpaceRemaining;
+              document.getElementById('storageClusterName').innerText = 'Storage Cluster Name: ' + stats.storageClusterName;
+              const driveDetails = stats.drives.map((drive, index) => 'Drive ' + (index + 1) + ': ' + drive.percentSpaceRemaining + ' remaining').join('<br>');
+              document.getElementById('driveDetails').innerHTML = driveDetails;
+              const circle = document.querySelector('.circular-progress .foreground');
+              const radius = circle.r.baseVal.value;
+              const circumference = 2 * Math.PI * radius;
+              circle.style.strokeDasharray = circumference;
+              circle.style.strokeDashoffset = circumference - (stats.percentSpaceRemaining / 100) * circumference;
+            }
+            fetchStats();
+          </script>
         </body>
         </html>
       `;
 
-		response.setHeader('Content-Type', 'text/html');
-		response.send(htmlContent);
-	} catch (error) {
-		console.error('Error retrieving drive stats:', error);
-		response.status(500).send('Error retrieving drive stats');
-	}
+	response.setHeader('Content-Type', 'text/html');
+	response.send(htmlContent);
 };
