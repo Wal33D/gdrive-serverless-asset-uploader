@@ -9,10 +9,8 @@ import { getDriveClient } from '../utils/getDriveClient';
 import { authorizeRequest } from '../utils/auth';
 import { checkIfFileExists } from '../utils/checkIfFileExists';
 import { setFilePermissions } from '../utils/setFilePermissions';
+import { gdriveResultFields as fields } from '../utils/gdriveResultFields';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
-
-const fields =
-	'id, name, mimeType, size, md5Checksum, starred, trashed, parents, iconLink, createdTime, modifiedTime, webViewLink, webContentLink, owners(kind,permissionId,emailAddress), permissions(id,emailAddress,role)';
 
 const formDataUploadToGoogleDrive = async ({
 	filePath,

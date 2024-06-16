@@ -6,6 +6,7 @@ import { getDriveClient } from '../utils/getDriveClient';
 import { authorizeRequest } from '../utils/auth';
 import { checkIfFileExists } from '../utils/checkIfFileExists';
 import { setFilePermissions } from '../utils/setFilePermissions';
+import { gdriveResultFields as fields } from '../utils/gdriveResultFields';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToMongo, saveFileRecordToDB } from '../utils/mongo';
 
@@ -46,13 +47,13 @@ const formDataUploadToGoogleDrive = async ({
 			addParents: folderId,
 			requestBody: fileMetadata,
 			media: media,
-			fields: 'id, name, mimeType, size, md5Checksum, sha1Checksum, sha256Checksum, starred, trashed, parents, webViewLink, webContentLink, iconLink, createdTime, modifiedTime, quotaBytesUsed, owners(kind,displayName,photoLink,me,permissionId,emailAddress), permissions(id,type,emailAddress,role,displayName,photoLink,deleted)',
+			fields,
 		});
 	} else {
 		uploadResponse = await drive.files.create({
 			requestBody: { ...fileMetadata, parents: [folderId] },
 			media: media,
-			fields: 'id, name, mimeType, size, md5Checksum, sha1Checksum, sha256Checksum, starred, trashed, parents, webViewLink, webContentLink, iconLink, createdTime, modifiedTime, quotaBytesUsed, owners(kind,displayName,photoLink,me,permissionId,emailAddress), permissions(id,type,emailAddress,role,displayName,photoLink,deleted)',
+			fields,
 		});
 	}
 

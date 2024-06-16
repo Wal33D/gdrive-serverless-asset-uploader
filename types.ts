@@ -1,7 +1,6 @@
 import { drive_v3 } from 'googleapis';
 
 export interface FileDocument {
-	fileName: string;
 	folderId: string;
 	folderName: string;
 	user: string;
@@ -19,9 +18,6 @@ export interface FileDocument {
 	modifiedTime: string;
 	owners: {
 		kind: string;
-		displayName: string;
-		photoLink: string;
-		me: boolean;
 		permissionId: string;
 		emailAddress: string;
 	}[];
@@ -30,17 +26,11 @@ export interface FileDocument {
 		type: string;
 		emailAddress: string;
 		role: string;
-		displayName: string;
-		photoLink: string;
-		deleted: boolean;
 	}[];
 	md5Checksum: string;
-	sha1Checksum: string;
-	sha256Checksum: string;
 	size: string;
-	quotaBytesUsed: string;
 	downloadUrl: string;
-	_id?: string; // Optional if not immediately available
+	_id?: string;
 }
 
 export interface FileExistsResponse {
